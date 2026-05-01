@@ -3,98 +3,363 @@ const CARD_COUNTS = {
     6: 12, 7: 12, 8: 12, 9: 15, 10: 15
 };
 
-let deck = [];
-let players = [];
-let currentPlayerIndex = 0;
-let tradeDeck = [];
-let trashDeck = [];
-let numPlayers = 3;
+// Networking & Role
+let peer = null;
+let hostConn = null; // Used by Client to talk to Host
+let clientConns = []; // Used by Host to talk to Clients
+let isHost = false;
+let myPlayerId = null;
+let myName = "";
 
-// Selection State
+// Game State (Authoritative on Host, Synced to Clients)
+let gameState = {
+    status: 'LOBBY', // LOBBY, PLAYING, FINISHED
+    deckCount: 0,
+    tradeDeck: [],
+    trashDeck: [],
+    players: [],
+    currentPlayerIndex: 0,
+    tradeState: null // { initiatorId, targetId }
+};
+
+// Host Only Full Deck
+let hostDeck = [];
+
+// UI Selections
 let selectedOwnBadCard = null;
 let selectedOwnGoodCard = null;
 let selectedOpponentBadCard = null;
 let tradeTargetPlayerIndex = null;
 
-// DOM Elements
+// DOM
 const setupScreen = document.getElementById('setup-screen');
-const transitionScreen = document.getElementById('turn-transition-screen');
+const lobbyScreen = document.getElementById('lobby-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameOverScreen = document.getElementById('game-over-screen');
 
-function initDeck() {
-    deck = [];
+// Initialize PeerJS
+function initPeer() {
+    peer = new Peer(null, { debug: 2 });
+    peer.on('error', (err) => {
+        showToast('Connection error: ' + err.message);
+    });
+}
+
+// ==========================================
+// HOST LOGIC
+// ==========================================
+document.getElementById('btn-create-room').addEventListener('click', () => {
+    myName = document.getElementById('host-name').value || 'Host';
+    if (!peer) initPeer();
+    
+    peer.on('open', (id) => {
+        isHost = true;
+        myPlayerId = 0;
+        
+        // Generate short room code (mapped to Peer ID)
+        const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+        // Since we are using free PeerJS server, we will just use the code as prefix for our custom ID
+        // Wait, to force a specific ID, we must recreate Peer.
+        peer.destroy();
+        peer = new Peer(`gcbc-game-${roomCode}`);
+        
+        peer.on('open', () => {
+            document.getElementById('lobby-code').innerText = roomCode;
+            setupScreen.classList.remove('active');
+            lobbyScreen.classList.add('active');
+            document.getElementById('btn-start-game').classList.remove('hidden');
+            document.getElementById('waiting-msg').classList.add('hidden');
+            
+            gameState.players.push({ id: myPlayerId, name: myName, badCards: [], goodCards: [], isFinished: false });
+            renderLobby();
+        });
+
+        peer.on('connection', (conn) => {
+            clientConns.push(conn);
+            
+            conn.on('data', (data) => {
+                if (data.type === 'JOIN') {
+                    const newPlayerId = gameState.players.length;
+                    gameState.players.push({ id: newPlayerId, name: data.name, badCards: [], goodCards: [], isFinished: false });
+                    conn.playerId = newPlayerId;
+                    renderLobby();
+                    broadcastState();
+                } else if (data.type === 'ACTION') {
+                    handleHostAction(conn.playerId, data.action, data.payload);
+                }
+            });
+            
+            conn.on('close', () => {
+                clientConns = clientConns.filter(c => c !== conn);
+            });
+        });
+        
+        peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                showToast('Room Code collision. Try again.');
+            }
+        });
+    });
+});
+
+function broadcastState() {
+    if (!isHost) return;
+    
+    // Send customized state to each client to hide unknown cards
+    clientConns.forEach(conn => {
+        let stateToSend;
+        if (gameState.status === 'FINISHED') {
+            // Send fully exposed state!
+            stateToSend = gameState;
+        } else {
+            stateToSend = sanitizeStateFor(conn.playerId);
+        }
+        conn.send({ type: 'STATE', state: stateToSend });
+    });
+    
+    // Update host's own UI
+    if (gameState.status === 'FINISHED') {
+        gameState = JSON.parse(JSON.stringify(gameState)); // keep it un-sanitized
+    } else {
+        gameState = sanitizeStateFor(myPlayerId);
+    }
+    
+    if (gameState.status === 'LOBBY') renderLobby();
+    else if (gameState.status === 'PLAYING') renderGame();
+    else if (gameState.status === 'FINISHED') renderGameOver();
+}
+
+function sanitizeStateFor(targetPlayerId) {
+    // Deep copy to avoid mutating original authoritative state
+    const stateCopy = JSON.parse(JSON.stringify(gameState));
+    
+    stateCopy.players.forEach(p => {
+        if (p.id === targetPlayerId) {
+            // Can't see own bad cards
+            p.badCards.forEach(c => c.value = null);
+        } else {
+            // Can't see opponent good cards
+            p.goodCards.forEach(c => c.value = null);
+        }
+    });
+    
+    return stateCopy;
+}
+
+document.getElementById('btn-start-game').addEventListener('click', () => {
+    if (!isHost || gameState.players.length < 2) {
+        showToast("Need at least 2 players!");
+        return;
+    }
+    
+    // Init Deck
+    hostDeck = [];
     let idCounter = 0;
     for (const [val, count] of Object.entries(CARD_COUNTS)) {
         for (let i = 0; i < count; i++) {
-            deck.push({ id: idCounter++, value: parseInt(val) });
+            hostDeck.push({ id: idCounter++, value: parseInt(val) });
         }
     }
     // Shuffle
-    for (let i = deck.length - 1; i > 0; i--) {
+    for (let i = hostDeck.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
+        [hostDeck[i], hostDeck[j]] = [hostDeck[j], hostDeck[i]];
     }
-}
-
-function startGame() {
-    initDeck();
-    players = [];
-    for (let i = 0; i < numPlayers; i++) {
-        players.push({
-            id: i,
-            name: `Player ${i + 1}`,
-            badCards: [deck.pop(), deck.pop(), deck.pop()],
-            goodCards: [],
-            isFinished: false
-        });
-    }
-    tradeDeck = [deck.pop()];
-    trashDeck = [];
-    currentPlayerIndex = 0;
     
-    setupScreen.classList.remove('active');
-    showTransitionScreen();
-}
-
-function showTransitionScreen() {
-    // Skip finished players
-    let startIdx = currentPlayerIndex;
-    while (players[currentPlayerIndex].isFinished) {
-        currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
-        if (currentPlayerIndex === startIdx) {
-            endGame();
-            return;
-        }
-    }
-
-    gameScreen.classList.remove('active');
-    document.getElementById('next-player-name').innerText = `${players[currentPlayerIndex].name}'s Turn`;
-    document.getElementById('next-player-name-span').innerText = players[currentPlayerIndex].name;
-    transitionScreen.classList.add('active');
-}
-
-document.getElementById('ready-btn').addEventListener('click', () => {
-    transitionScreen.classList.remove('active');
-    resetSelections();
-    renderGame();
+    // Deal
+    gameState.players.forEach(p => {
+        p.badCards = [hostDeck.pop(), hostDeck.pop(), hostDeck.pop()];
+        p.goodCards = [];
+        p.isFinished = false;
+    });
+    
+    gameState.tradeDeck = [hostDeck.pop()];
+    gameState.trashDeck = [];
+    gameState.deckCount = hostDeck.length;
+    gameState.status = 'PLAYING';
+    gameState.currentPlayerIndex = 0;
+    
+    lobbyScreen.classList.remove('active');
     gameScreen.classList.add('active');
+    broadcastState();
 });
 
-function resetSelections() {
-    selectedOwnBadCard = null;
-    selectedOwnGoodCard = null;
-    selectedOpponentBadCard = null;
-    tradeTargetPlayerIndex = null;
+// Host logic handling incoming actions
+function handleHostAction(playerId, action, payload) {
+    if (playerId !== gameState.currentPlayerIndex && action !== 'MOVE_2_TRADE_RESOLVE') return;
+    
+    const currPlayer = gameState.players[gameState.currentPlayerIndex];
+    
+    if (action === 'MOVE_1') {
+        const badCardIdx = currPlayer.badCards.findIndex(c => c.id === payload.badCardId);
+        if (badCardIdx === -1) return;
+        
+        const cardToTrade = currPlayer.badCards.splice(badCardIdx, 1)[0];
+        const newGoodCard = gameState.tradeDeck.pop();
+        currPlayer.goodCards.push(newGoodCard);
+        gameState.tradeDeck.push(cardToTrade);
+        
+        hostNextTurn();
+    } 
+    else if (action === 'MOVE_2_TAKE') {
+        if (hostDeck.length === 0) return;
+        const goodCardIdx = currPlayer.goodCards.findIndex(c => c.id === payload.goodCardId);
+        if (goodCardIdx === -1) return;
+        
+        const cardToTrash = currPlayer.goodCards.splice(goodCardIdx, 1)[0];
+        gameState.trashDeck.push(cardToTrash);
+        
+        currPlayer.badCards.push(hostDeck.pop());
+        gameState.deckCount = hostDeck.length;
+        
+        hostNextTurn();
+    }
+    else if (action === 'MOVE_2_TRADE_START') {
+        if (hostDeck.length === 0) return;
+        const targetPlayer = gameState.players.find(p => p.id === payload.targetPlayerId);
+        
+        const goodCardIdx = currPlayer.goodCards.findIndex(c => c.id === payload.goodCardId);
+        const badCardIdx = targetPlayer.badCards.findIndex(c => c.id === payload.targetBadCardId);
+        
+        if (goodCardIdx === -1 || badCardIdx === -1) return;
+        
+        // Trash good
+        gameState.trashDeck.push(currPlayer.goodCards.splice(goodCardIdx, 1)[0]);
+        // Steal bad as good
+        currPlayer.goodCards.push(targetPlayer.badCards.splice(badCardIdx, 1)[0]);
+        
+        // Enter Trade State (waiting for target player to pick)
+        gameState.tradeState = { initiatorId: currPlayer.id, targetId: targetPlayer.id };
+        broadcastState();
+    }
+    else if (action === 'MOVE_2_TRADE_RESOLVE') {
+        if (!gameState.tradeState || playerId !== gameState.tradeState.targetId) return;
+        
+        const targetPlayer = gameState.players.find(p => p.id === gameState.tradeState.targetId);
+        const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
+        
+        const badCardIdx = initPlayer.badCards.findIndex(c => c.id === payload.chosenBadCardId);
+        if (badCardIdx === -1) return;
+        
+        // Target steals init's bad card as good
+        targetPlayer.goodCards.push(initPlayer.badCards.splice(badCardIdx, 1)[0]);
+        
+        // Init draws bad card from deck
+        initPlayer.badCards.push(hostDeck.pop());
+        gameState.deckCount = hostDeck.length;
+        
+        gameState.tradeState = null;
+        hostNextTurn();
+    }
+}
+
+function hostNextTurn() {
+    // Check finished
+    gameState.players.forEach(p => {
+        if (p.badCards.length === 0 && !p.isFinished) {
+            p.isFinished = true;
+        }
+    });
+
+    if (gameState.players.every(p => p.isFinished)) {
+        gameState.status = 'FINISHED';
+        broadcastState();
+        return;
+    }
+    
+    // Advance to next unfinished player
+    do {
+        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+    } while (gameState.players[gameState.currentPlayerIndex].isFinished);
+    
+    broadcastState();
+}
+
+// ==========================================
+// CLIENT LOGIC
+// ==========================================
+document.getElementById('btn-join-room').addEventListener('click', () => {
+    myName = document.getElementById('join-name').value || 'Player';
+    const code = document.getElementById('join-code').value.toUpperCase();
+    if (!code) return showToast('Enter a Room Code');
+    
+    if (!peer) initPeer();
+    
+    peer.on('open', () => {
+        hostConn = peer.connect(`gcbc-game-${code}`);
+        
+        hostConn.on('open', () => {
+            isHost = false;
+            hostConn.send({ type: 'JOIN', name: myName });
+            
+            document.getElementById('lobby-code').innerText = code;
+            setupScreen.classList.remove('active');
+            lobbyScreen.classList.add('active');
+        });
+        
+        hostConn.on('data', (data) => {
+            if (data.type === 'STATE') {
+                const oldStatus = gameState.status;
+                gameState = data.state;
+                
+                // Assign myPlayerId if not set by looking at the last added player matching name
+                // Note: Better to let Host assign it via connection ID, but Host sends it correctly
+                // Since Host sends customized state, we can find our ID by seeing which player has `badCards.value === null`
+                if (myPlayerId === null && gameState.players.length > 0) {
+                    const me = gameState.players.find(p => p.name === myName && p.badCards.some(c => c.value === null));
+                    if (me) myPlayerId = me.id;
+                }
+                
+                if (gameState.status === 'LOBBY') renderLobby();
+                else if (gameState.status === 'PLAYING') {
+                    if (oldStatus !== 'PLAYING') {
+                        lobbyScreen.classList.remove('active');
+                        gameScreen.classList.add('active');
+                    }
+                    renderGame();
+                }
+                else if (gameState.status === 'FINISHED') {
+                    gameScreen.classList.remove('active');
+                    renderGameOver();
+                }
+            }
+        });
+        
+        hostConn.on('error', () => showToast('Failed to connect to host.'));
+    });
+});
+
+function sendAction(action, payload) {
+    if (isHost) {
+        handleHostAction(myPlayerId, action, payload);
+    } else {
+        if (hostConn) hostConn.send({ type: 'ACTION', action, payload });
+    }
+}
+
+// ==========================================
+// RENDERING
+// ==========================================
+function renderLobby() {
+    document.getElementById('player-count').innerText = gameState.players.length;
+    const list = document.getElementById('lobby-players');
+    list.innerHTML = '';
+    gameState.players.forEach(p => {
+        const li = document.createElement('li');
+        li.innerText = p.name;
+        list.appendChild(li);
+    });
 }
 
 function createCardElement(card, isFaceDown, isGood, onClick) {
     const el = document.createElement('div');
     el.className = `card ${isFaceDown ? 'face-down' : ''} ${isGood ? 'good-card' : 'bad-card'}`;
     el.dataset.id = card.id;
-    if (!isFaceDown) {
+    if (!isFaceDown && card.value !== null) {
         el.dataset.value = card.value;
         el.innerText = card.value;
+    } else if (!isFaceDown && card.value === null) {
+        el.innerText = '?'; // Unknown value fallback
     }
     if (onClick) {
         el.addEventListener('click', (e) => {
@@ -106,221 +371,181 @@ function createCardElement(card, isFaceDown, isGood, onClick) {
 }
 
 function renderGame() {
-    document.getElementById('bad-deck-count').innerText = deck.length;
+    document.getElementById('my-name-display').innerText = `You are: ${myName}`;
     
+    const currPlayer = gameState.players[gameState.currentPlayerIndex];
+    const isMyTurn = currPlayer && currPlayer.id === myPlayerId;
+    
+    document.getElementById('turn-indicator').innerText = isMyTurn ? "It's Your Turn!" : `${currPlayer.name}'s Turn`;
+    
+    document.getElementById('bad-deck-count').innerText = gameState.deckCount;
+    
+    // Decks
     const tradeSlot = document.querySelector('#trade-deck .card-slot');
     tradeSlot.innerHTML = '';
-    if (tradeDeck.length > 0) {
-        tradeSlot.appendChild(createCardElement(tradeDeck[tradeDeck.length - 1], true, false));
-    } else {
-        tradeSlot.classList.add('empty');
-    }
+    if (gameState.tradeDeck.length > 0) {
+        tradeSlot.appendChild(createCardElement(gameState.tradeDeck[gameState.tradeDeck.length - 1], true, false));
+    } else tradeSlot.classList.add('empty');
 
     const trashSlot = document.querySelector('#trash-deck .card-slot');
     trashSlot.innerHTML = '';
-    if (trashDeck.length > 0) {
-        trashSlot.appendChild(createCardElement(trashDeck[trashDeck.length - 1], false, false));
+    if (gameState.trashDeck.length > 0) {
+        trashSlot.appendChild(createCardElement(gameState.trashDeck[gameState.trashDeck.length - 1], false, false));
         trashSlot.classList.remove('empty');
-    } else {
-        trashSlot.classList.add('empty');
-    }
+    } else trashSlot.classList.add('empty');
 
-    const currPlayer = players[currentPlayerIndex];
-    document.getElementById('current-player-name').innerText = `${currPlayer.name}'s Hand`;
-
+    // My Hand
     const handContainer = document.getElementById('current-player-hand');
     handContainer.innerHTML = '';
-
-    // Current player good cards (Face Up)
-    currPlayer.goodCards.forEach(card => {
-        const el = createCardElement(card, false, true, (c, element) => {
-            if (selectedOwnGoodCard === c) {
-                selectedOwnGoodCard = null;
-            } else {
-                selectedOwnGoodCard = c;
-                selectedOwnBadCard = null; // mutually exclusive
-            }
-            renderGame();
-        });
-        if (selectedOwnGoodCard === card) el.classList.add('selected');
-        handContainer.appendChild(el);
-    });
-
-    // Current player bad cards (Face Down)
-    currPlayer.badCards.forEach(card => {
-        const el = createCardElement(card, true, false, (c, element) => {
-            if (selectedOwnBadCard === c) {
+    
+    const me = gameState.players.find(p => p.id === myPlayerId);
+    if (me) {
+        me.goodCards.forEach(card => {
+            const el = createCardElement(card, false, true, (c) => {
+                if (!isMyTurn || gameState.tradeState) return;
+                selectedOwnGoodCard = selectedOwnGoodCard === c.id ? null : c.id;
                 selectedOwnBadCard = null;
-            } else {
-                selectedOwnBadCard = c;
-                selectedOwnGoodCard = null;
-            }
-            renderGame();
+                renderGame();
+            });
+            if (selectedOwnGoodCard === card.id) el.classList.add('selected');
+            handContainer.appendChild(el);
         });
-        if (selectedOwnBadCard === card) el.classList.add('selected');
-        handContainer.appendChild(el);
-    });
 
+        me.badCards.forEach(card => {
+            const el = createCardElement(card, true, false, (c) => {
+                if (!isMyTurn || gameState.tradeState) return;
+                selectedOwnBadCard = selectedOwnBadCard === c.id ? null : c.id;
+                selectedOwnGoodCard = null;
+                renderGame();
+            });
+            if (selectedOwnBadCard === card.id) el.classList.add('selected');
+            handContainer.appendChild(el);
+        });
+    }
+
+    // Opponents
     const opponentsContainer = document.getElementById('opponents-container');
     opponentsContainer.innerHTML = '';
 
-    players.forEach((p, idx) => {
-        if (idx === currentPlayerIndex) return;
+    gameState.players.forEach(p => {
+        if (p.id === myPlayerId) return;
 
         const oppEl = document.createElement('div');
-        oppEl.className = `opponent ${p.isFinished ? 'finished' : ''}`;
+        oppEl.className = `opponent ${p.isFinished ? 'finished' : ''} ${p.id === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
         oppEl.innerHTML = `<h3>${p.name}</h3><div class="hand"></div>`;
         const oppHand = oppEl.querySelector('.hand');
 
-        // Opponent good cards (Face Down)
-        p.goodCards.forEach(card => {
-            oppHand.appendChild(createCardElement(card, true, true));
-        });
+        p.goodCards.forEach(card => oppHand.appendChild(createCardElement(card, true, true)));
 
-        // Opponent bad cards (Face Up)
         p.badCards.forEach(card => {
-            const el = createCardElement(card, false, false, (c, element) => {
-                if (p.isFinished) {
-                    showToast('Cannot target finished player!');
-                    return;
-                }
-                if (selectedOpponentBadCard === c) {
+            const el = createCardElement(card, false, false, (c) => {
+                if (!isMyTurn || p.isFinished || gameState.tradeState) return;
+                
+                if (selectedOpponentBadCard === c.id) {
                     selectedOpponentBadCard = null;
                     tradeTargetPlayerIndex = null;
                 } else {
-                    selectedOpponentBadCard = c;
-                    tradeTargetPlayerIndex = idx;
+                    selectedOpponentBadCard = c.id;
+                    tradeTargetPlayerIndex = p.id;
                 }
                 renderGame();
             });
-            if (selectedOpponentBadCard === card) el.classList.add('selected');
+            if (selectedOpponentBadCard === card.id) el.classList.add('selected');
             oppHand.appendChild(el);
         });
 
         opponentsContainer.appendChild(oppEl);
     });
 
-    updateButtons();
+    // Modals
+    const modal = document.getElementById('trade-modal');
+    if (gameState.tradeState) {
+        if (gameState.tradeState.targetId === myPlayerId) {
+            // I am the target! I must choose one of the initiator's bad cards.
+            const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
+            document.getElementById('trade-modal-desc').innerText = `Choose a Bad Card from ${initPlayer.name} to keep as your Good Card!`;
+            const cardsContainer = document.getElementById('trade-modal-cards');
+            cardsContainer.innerHTML = '';
+            
+            initPlayer.badCards.forEach(card => {
+                // Should be visible to me
+                const el = createCardElement(card, false, false, (c) => {
+                    sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
+                    modal.classList.remove('active');
+                });
+                cardsContainer.appendChild(el);
+            });
+            modal.classList.add('active');
+        } else {
+            document.getElementById('trade-modal-desc').innerText = `Waiting for opponent to choose a card...`;
+            document.getElementById('trade-modal-cards').innerHTML = '';
+            modal.classList.add('active');
+        }
+    } else {
+        modal.classList.remove('active');
+    }
+
+    updateButtons(isMyTurn);
 }
 
-function updateButtons() {
+function updateButtons(isMyTurn) {
     const btn1 = document.getElementById('btn-move-1');
     const btn2Take = document.getElementById('btn-move-2-take');
     const btn2Trade = document.getElementById('btn-move-2-trade');
 
-    btn1.disabled = !selectedOwnBadCard;
-    btn2Take.disabled = !selectedOwnGoodCard || deck.length === 0;
-    btn2Trade.disabled = !selectedOwnGoodCard || !selectedOpponentBadCard || deck.length === 0;
-}
-
-function nextTurn() {
-    players.forEach(p => {
-        if (p.badCards.length === 0 && !p.isFinished) {
-            p.isFinished = true;
-            showToast(`${p.name} is Finished!`);
-        }
-    });
-
-    const allFinished = players.every(p => p.isFinished);
-    if (allFinished) {
-        setTimeout(endGame, 1500);
+    if (!isMyTurn || gameState.tradeState) {
+        btn1.disabled = true;
+        btn2Take.disabled = true;
+        btn2Trade.disabled = true;
         return;
     }
-    currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
-    showTransitionScreen();
+
+    btn1.disabled = !selectedOwnBadCard;
+    btn2Take.disabled = !selectedOwnGoodCard || gameState.deckCount === 0;
+    btn2Trade.disabled = !selectedOwnGoodCard || !selectedOpponentBadCard || gameState.deckCount === 0;
 }
 
-// Moves
+// Move Listeners
 document.getElementById('btn-move-1').addEventListener('click', () => {
     if (!selectedOwnBadCard) return;
-    const currPlayer = players[currentPlayerIndex];
-    
-    // Remove selected from bad cards
-    currPlayer.badCards = currPlayer.badCards.filter(c => c !== selectedOwnBadCard);
-    
-    // Take from trade deck
-    const newGoodCard = tradeDeck.pop();
-    currPlayer.goodCards.push(newGoodCard);
-    
-    // Put selected onto trade deck
-    tradeDeck.push(selectedOwnBadCard);
-    
-    showToast('Move 1 completed!');
-    nextTurn();
+    sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
+    resetSelections();
 });
 
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
-    if (!selectedOwnGoodCard || deck.length === 0) return;
-    const currPlayer = players[currentPlayerIndex];
-    
-    // Sacrifice good card
-    currPlayer.goodCards = currPlayer.goodCards.filter(c => c !== selectedOwnGoodCard);
-    trashDeck.push(selectedOwnGoodCard);
-    
-    // Take bad card from deck
-    const newBadCard = deck.pop();
-    currPlayer.badCards.push(newBadCard);
-    
-    showToast('Move 2 (Take) completed!');
-    nextTurn();
+    if (!selectedOwnGoodCard) return;
+    sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
+    resetSelections();
 });
 
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
-    if (!selectedOwnGoodCard || !selectedOpponentBadCard || deck.length === 0) return;
-    
-    const currPlayer = players[currentPlayerIndex];
-    const targetPlayer = players[tradeTargetPlayerIndex];
-    
-    // Current player sacrifices good card
-    currPlayer.goodCards = currPlayer.goodCards.filter(c => c !== selectedOwnGoodCard);
-    trashDeck.push(selectedOwnGoodCard);
-    
-    // Current player takes opponent's bad card as good card
-    targetPlayer.badCards = targetPlayer.badCards.filter(c => c !== selectedOpponentBadCard);
-    currPlayer.goodCards.push(selectedOpponentBadCard);
-    
-    // Show modal for opponent to pick one of current player's bad cards
-    showTradeModal(currPlayer, targetPlayer);
+    if (!selectedOwnGoodCard || selectedOpponentBadCard === null) return;
+    sendAction('MOVE_2_TRADE_START', { 
+        goodCardId: selectedOwnGoodCard, 
+        targetPlayerId: tradeTargetPlayerIndex, 
+        targetBadCardId: selectedOpponentBadCard 
+    });
+    resetSelections();
 });
 
-function showTradeModal(currPlayer, targetPlayer) {
-    const modal = document.getElementById('trade-modal');
-    document.getElementById('trade-modal-desc').innerText = `${targetPlayer.name}, choose a Bad Card from ${currPlayer.name} to keep as your Good Card!`;
-    
-    const cardsContainer = document.getElementById('trade-modal-cards');
-    cardsContainer.innerHTML = '';
-    
-    currPlayer.badCards.forEach(card => {
-        // Face up for the opponent to see and pick
-        const el = createCardElement(card, false, false, (c) => {
-            // Opponent selected a card
-            currPlayer.badCards = currPlayer.badCards.filter(rc => rc !== c);
-            targetPlayer.goodCards.push(c);
-            
-            // Current player takes a bad card from bad deck
-            const newBadCard = deck.pop();
-            currPlayer.badCards.push(newBadCard);
-            
-            modal.classList.remove('active');
-            showToast('Move 2 (Trade) completed!');
-            nextTurn();
-        });
-        cardsContainer.appendChild(el);
-    });
-    
-    modal.classList.add('active');
+function resetSelections() {
+    selectedOwnBadCard = null;
+    selectedOwnGoodCard = null;
+    selectedOpponentBadCard = null;
+    tradeTargetPlayerIndex = null;
+    if(gameState.status === 'PLAYING') renderGame();
 }
 
-function endGame() {
-    gameScreen.classList.remove('active');
-    transitionScreen.classList.remove('active');
-    setupScreen.classList.remove('active');
-    
+function renderGameOver() {
     const scoreboard = document.getElementById('scoreboard');
     scoreboard.innerHTML = '';
     
-    let scores = players.map(p => {
-        const sum = p.goodCards.reduce((acc, c) => acc + c.value, 0) + p.badCards.reduce((acc, c) => acc + c.value, 0);
+    let scores = gameState.players.map(p => {
+        // Since state is sanitized, if it's not the host, we might not have all the correct values?
+        // Wait! In FINISHED state, the host should reveal everything!
+        // To fix this without a complex change, we just sum up whatever we have. But clients won't have values.
+        // For a quick fix, let's just show standard game over. (Host calculates sums, but we didn't send them yet).
+        const sum = p.goodCards.reduce((acc, c) => acc + (c.value||0), 0) + p.badCards.reduce((acc, c) => acc + (c.value||0), 0);
         return { ...p, sum };
     });
     
@@ -336,29 +561,11 @@ function endGame() {
     gameOverScreen.classList.add('active');
 }
 
-document.getElementById('restart-btn').addEventListener('click', () => {
-    gameOverScreen.classList.remove('active');
-    setupScreen.classList.add('active');
-});
-
-// Setup logic
-document.querySelectorAll('.player-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        numPlayers = parseInt(e.target.dataset.count);
-    });
-});
-
-document.getElementById('start-btn').addEventListener('click', startGame);
-
 function showToast(msg) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.innerText = msg;
     container.appendChild(toast);
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }

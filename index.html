@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GCBC (Good Card Bad Card)</title>
     <link rel="stylesheet" href="style.css">
+    <!-- PeerJS for WebRTC Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
     <div id="setup-screen" class="screen active">
@@ -12,30 +14,60 @@
             <h1>GCBC</h1>
             <p>Good Card Bad Card</p>
             
-            <div class="form-group">
-                <label>Number of Players:</label>
-                <div class="player-count-buttons">
-                    <button class="player-btn" data-count="2">2</button>
-                    <button class="player-btn active" data-count="3">3</button>
-                    <button class="player-btn" data-count="4">4</button>
+            <div class="setup-options">
+                <div class="host-section">
+                    <h3>Host a Game</h3>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="host-name" value="Host" class="input-field" maxlength="10">
+                    </div>
+                    <button id="btn-create-room" class="primary-btn">Create Room</button>
+                </div>
+                
+                <div class="divider">OR</div>
+                
+                <div class="join-section">
+                    <h3>Join a Game</h3>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="join-name" value="Player" class="input-field" maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Room Code:</label>
+                        <input type="text" id="join-code" placeholder="Enter Code" class="input-field uppercase">
+                    </div>
+                    <button id="btn-join-room" class="primary-btn secondary">Join Room</button>
                 </div>
             </div>
-            
-            <button id="start-btn" class="primary-btn">Start Game</button>
         </div>
     </div>
 
-    <div id="turn-transition-screen" class="screen">
-        <div class="glass-panel transition-panel">
-            <h1 id="next-player-name">Player X's Turn</h1>
-            <p>Pass the device to <span id="next-player-name-span">Player X</span>.</p>
-            <p class="warning">Make sure other players aren't looking!</p>
-            <button id="ready-btn" class="primary-btn">I'm Ready</button>
+    <div id="lobby-screen" class="screen">
+        <div class="glass-panel lobby-panel">
+            <h2>Game Lobby</h2>
+            <div class="room-info">
+                Room Code: <span id="lobby-code" class="highlight-code">----</span>
+            </div>
+            
+            <div class="players-list">
+                <h3>Players (<span id="player-count">1</span>/4)</h3>
+                <ul id="lobby-players">
+                    <!-- Players added here dynamically -->
+                </ul>
+            </div>
+            
+            <button id="btn-start-game" class="primary-btn hidden">Start Game</button>
+            <p id="waiting-msg">Waiting for host to start...</p>
         </div>
     </div>
 
     <div id="game-screen" class="screen">
         <div class="game-container">
+            <div class="top-bar">
+                <span id="turn-indicator">Waiting...</span>
+                <span id="my-name-display"></span>
+            </div>
+
             <div id="opponents-container" class="opponents-area">
                 <!-- Opponents will be rendered here dynamically -->
             </div>
@@ -68,7 +100,7 @@
             </div>
 
             <div class="current-player-area">
-                <h2 id="current-player-name">Your Hand</h2>
+                <h2>Your Hand</h2>
                 <div id="current-player-hand" class="hand">
                     <!-- Current player's cards go here -->
                 </div>
@@ -78,8 +110,8 @@
 
     <div id="trade-modal" class="modal">
         <div class="glass-panel modal-panel">
-            <h2 id="trade-modal-title">Trade</h2>
-            <p id="trade-modal-desc">Opponent, choose a Bad Card from the current player.</p>
+            <h2 id="trade-modal-title">Trade Action</h2>
+            <p id="trade-modal-desc">Waiting for opponent to choose...</p>
             <div id="trade-modal-cards" class="hand">
                 <!-- Selectable cards -->
             </div>
@@ -92,7 +124,6 @@
             <div id="scoreboard">
                 <!-- Scores go here -->
             </div>
-            <button id="restart-btn" class="primary-btn">Play Again</button>
         </div>
     </div>
 
