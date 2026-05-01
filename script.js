@@ -10,6 +10,33 @@ let clientConns = []; // Used by Host to talk to Clients
 let isHost = false;
 let myPlayerId = null;
 let myName = "";
+let myProfilePic = "";
+
+// Google Identity Auth
+function decodeJwtResponse(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+
+window.handleCredentialResponse = function(response) {
+    const payload = decodeJwtResponse(response.credential);
+    myName = payload.name;
+    myProfilePic = payload.picture;
+    
+    document.getElementById('auth-section').classList.add('hidden');
+    document.getElementById('setup-options').classList.remove('hidden');
+    
+    document.getElementById('user-profile-name').innerText = myName;
+    if (myProfilePic) {
+        const img = document.getElementById('user-profile-img');
+        img.src = myProfilePic;
+        img.classList.remove('hidden');
+    }
+};
 
 // Game State (Authoritative on Host, Synced to Clients)
 let gameState = {
@@ -49,7 +76,6 @@ function initPeer() {
 // HOST LOGIC
 // ==========================================
 document.getElementById('btn-create-room').addEventListener('click', () => {
-    myName = document.getElementById('host-name').value || 'Host';
     if (!peer) initPeer();
     
     peer.on('open', (id) => {
@@ -70,7 +96,7 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             document.getElementById('btn-start-game').classList.remove('hidden');
             document.getElementById('waiting-msg').classList.add('hidden');
             
-            gameState.players.push({ id: myPlayerId, name: myName, badCards: [], goodCards: [], isFinished: false });
+            gameState.players.push({ id: myPlayerId, name: myName, picture: myProfilePic, badCards: [], goodCards: [], isFinished: false });
             renderLobby();
         });
 
@@ -80,7 +106,7 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             conn.on('data', (data) => {
                 if (data.type === 'JOIN') {
                     const newPlayerId = gameState.players.length;
-                    gameState.players.push({ id: newPlayerId, name: data.name, badCards: [], goodCards: [], isFinished: false });
+                    gameState.players.push({ id: newPlayerId, name: data.name, picture: data.picture, badCards: [], goodCards: [], isFinished: false });
                     conn.playerId = newPlayerId;
                     renderLobby();
                     broadcastState();
@@ -279,7 +305,6 @@ function hostNextTurn() {
 // CLIENT LOGIC
 // ==========================================
 document.getElementById('btn-join-room').addEventListener('click', () => {
-    myName = document.getElementById('join-name').value || 'Player';
     const code = document.getElementById('join-code').value.toUpperCase();
     if (!code) return showToast('Enter a Room Code');
     
@@ -290,7 +315,7 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
         
         hostConn.on('open', () => {
             isHost = false;
-            hostConn.send({ type: 'JOIN', name: myName });
+            hostConn.send({ type: 'JOIN', name: myName, picture: myProfilePic });
             
             document.getElementById('lobby-code').innerText = code;
             setupScreen.classList.remove('active');
@@ -346,7 +371,11 @@ function renderLobby() {
     list.innerHTML = '';
     gameState.players.forEach(p => {
         const li = document.createElement('li');
-        li.innerText = p.name;
+        if (p.picture) {
+            li.innerHTML = `<img src="${p.picture}" class="profile-pic small" style="margin-right: 10px;"> ${p.name}`;
+        } else {
+            li.innerHTML = `👤 ${p.name}`;
+        }
         list.appendChild(li);
     });
 }
@@ -371,7 +400,12 @@ function createCardElement(card, isFaceDown, isGood, onClick) {
 }
 
 function renderGame() {
-    document.getElementById('my-name-display').innerText = `You are: ${myName}`;
+    const me = gameState.players.find(p => p.id === myPlayerId);
+    if (me && me.picture) {
+        document.getElementById('my-name-display').innerHTML = `<img src="${me.picture}" class="profile-pic small" style="vertical-align: middle; margin-right: 5px;"> You are: ${me.name}`;
+    } else {
+        document.getElementById('my-name-display').innerText = `You are: ${myName}`;
+    }
     
     const currPlayer = gameState.players[gameState.currentPlayerIndex];
     const isMyTurn = currPlayer && currPlayer.id === myPlayerId;
@@ -432,7 +466,10 @@ function renderGame() {
 
         const oppEl = document.createElement('div');
         oppEl.className = `opponent ${p.isFinished ? 'finished' : ''} ${p.id === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
-        oppEl.innerHTML = `<h3>${p.name}</h3><div class="hand"></div>`;
+        oppEl.innerHTML = `<div class="opponent-header">
+            ${p.picture ? `<img src="${p.picture}" class="profile-pic small">` : '👤'}
+            <h3>${p.name}</h3>
+        </div><div class="hand"></div>`;
         const oppHand = oppEl.querySelector('.hand');
 
         p.goodCards.forEach(card => oppHand.appendChild(createCardElement(card, true, true)));

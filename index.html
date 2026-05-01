@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- PeerJS for WebRTC Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div id="setup-screen" class="screen active">
@@ -14,13 +16,33 @@
             <h1>GCBC</h1>
             <p>Good Card Bad Card</p>
             
-            <div class="setup-options">
+            <div id="auth-section">
+                <p style="margin-bottom: 20px;">Sign in to play with your friends!</p>
+                <div id="g_id_onload"
+                     data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin" style="display: flex; justify-content: center;"
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left">
+                </div>
+                <p class="warning" style="margin-top: 15px; font-size: 0.8rem; color: #fbbf24;">
+                    Developer: Replace YOUR_GOOGLE_CLIENT_ID_HERE in index.html with your actual Client ID!
+                </p>
+            </div>
+            
+            <div id="setup-options" class="setup-options hidden">
+                <div class="user-profile-display">
+                    <img id="user-profile-img" src="" alt="Profile" class="profile-pic hidden">
+                    <span id="user-profile-name"></span>
+                </div>
                 <div class="host-section">
                     <h3>Host a Game</h3>
-                    <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" id="host-name" value="Host" class="input-field" maxlength="10">
-                    </div>
                     <button id="btn-create-room" class="primary-btn">Create Room</button>
                 </div>
                 
@@ -28,10 +50,6 @@
                 
                 <div class="join-section">
                     <h3>Join a Game</h3>
-                    <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" id="join-name" value="Player" class="input-field" maxlength="10">
-                    </div>
                     <div class="form-group">
                         <label>Room Code:</label>
                         <input type="text" id="join-code" placeholder="Enter Code" class="input-field uppercase">
