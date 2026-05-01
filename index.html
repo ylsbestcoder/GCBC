@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCBC (Good Card Bad Card)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="setup-screen" class="screen active">
+        <div class="glass-panel setup-panel">
+            <h1>GCBC</h1>
+            <p>Good Card Bad Card</p>
+            
+            <div class="form-group">
+                <label>Number of Players:</label>
+                <div class="player-count-buttons">
+                    <button class="player-btn" data-count="2">2</button>
+                    <button class="player-btn active" data-count="3">3</button>
+                    <button class="player-btn" data-count="4">4</button>
+                </div>
+            </div>
+            
+            <button id="start-btn" class="primary-btn">Start Game</button>
+        </div>
+    </div>
+
+    <div id="turn-transition-screen" class="screen">
+        <div class="glass-panel transition-panel">
+            <h1 id="next-player-name">Player X's Turn</h1>
+            <p>Pass the device to <span id="next-player-name-span">Player X</span>.</p>
+            <p class="warning">Make sure other players aren't looking!</p>
+            <button id="ready-btn" class="primary-btn">I'm Ready</button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="game-container">
+            <div id="opponents-container" class="opponents-area">
+                <!-- Opponents will be rendered here dynamically -->
+            </div>
+
+            <div class="center-area">
+                <div class="deck-container">
+                    <div class="deck" id="trash-deck">
+                        <div class="deck-label">Trash</div>
+                        <div class="card-slot empty"></div>
+                    </div>
+                    <div class="deck" id="trade-deck">
+                        <div class="deck-label">Trade</div>
+                        <div class="card-slot">
+                            <div class="card face-down"></div>
+                        </div>
+                    </div>
+                    <div class="deck" id="bad-deck">
+                        <div class="deck-label">Bad Deck (<span id="bad-deck-count">0</span>)</div>
+                        <div class="card-slot">
+                            <div class="card face-down"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="btn-move-1" class="action-btn tooltip" data-tooltip="Swap your Bad Card with the Trade Deck">Move 1</button>
+                    <button id="btn-move-2-take" class="action-btn tooltip" data-tooltip="Discard a Good Card, take a Bad Card from Deck">Move 2 (Take)</button>
+                    <button id="btn-move-2-trade" class="action-btn tooltip" data-tooltip="Discard a Good Card, swap Bad Cards with opponent">Move 2 (Trade)</button>
+                </div>
+            </div>
+
+            <div class="current-player-area">
+                <h2 id="current-player-name">Your Hand</h2>
+                <div id="current-player-hand" class="hand">
+                    <!-- Current player's cards go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="trade-modal" class="modal">
+        <div class="glass-panel modal-panel">
+            <h2 id="trade-modal-title">Trade</h2>
+            <p id="trade-modal-desc">Opponent, choose a Bad Card from the current player.</p>
+            <div id="trade-modal-cards" class="hand">
+                <!-- Selectable cards -->
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="screen">
+        <div class="glass-panel game-over-panel">
+            <h1>Game Over</h1>
+            <div id="scoreboard">
+                <!-- Scores go here -->
+            </div>
+            <button id="restart-btn" class="primary-btn">Play Again</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
