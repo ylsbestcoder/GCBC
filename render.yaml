@@ -2,7 +2,7 @@ services:
   - type: web
     name: gcbc-game
     env: static
-    buildCommand: 'sed -i "s|YOUR_SUPABASE_URL_HERE|$SUPABASE_URL|g" index.html && sed -i "s|YOUR_SUPABASE_KEY_HERE|$SUPABASE_KEY|g" index.html'
+    buildCommand: 'echo "window.ENV = { SUPABASE_URL: \"$SUPABASE_URL\", SUPABASE_KEY: \"$SUPABASE_KEY\" };" > env.js'
     staticPublishPath: ./
     envVars:
       - key: SUPABASE_URL
