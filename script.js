@@ -142,7 +142,15 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             document.getElementById('btn-start-game').classList.remove('hidden');
             document.getElementById('waiting-msg').classList.add('hidden');
             
-            gameState.players.push({ id: myPlayerId, name: myName, picture: myProfilePic, supabaseId: mySupabaseId, badCards: [], goodCards: [], isFinished: false });
+            gameState.players.push({ 
+                id: myPlayerId, 
+                name: myName, 
+                picture: myProfilePic, 
+                supabaseId: mySupabaseId, 
+                hand: [], 
+                selections: { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null },
+                isFinished: false 
+            });
             renderLobby();
         });
 
@@ -157,7 +165,10 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
                         name: data.name,
                         picture: data.picture,
                         supabaseId: data.supabaseId,
-                        badCards: [], goodCards: [], isFinished: false });
+                        hand: [], 
+                        selections: { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null },
+                        isFinished: false 
+                    });
                     conn.playerId = newPlayerId;
                     renderLobby();
                     broadcastState();
@@ -207,10 +218,10 @@ function sanitizeStateFor(targetPlayerId) {
     stateCopy.players.forEach(p => {
         if (p.id === targetPlayerId) {
             // Can't see own bad cards
-            p.badCards.forEach(c => c.value = null);
+            if (p.hand) p.hand.forEach(c => { if (!c.isGood) c.value = null; });
         } else {
             // Can't see opponent good cards
-            p.goodCards.forEach(c => c.value = null);
+            if (p.hand) p.hand.forEach(c => { if (c.isGood) c.value = null; });
         }
     });
     
@@ -239,9 +250,14 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     
     // Deal
     gameState.players.forEach(p => {
-        p.badCards = [hostDeck.pop(), hostDeck.pop(), hostDeck.pop()];
-        p.goodCards = [];
+        p.hand = [
+            { ...hostDeck.pop(), isGood: false },
+            { ...hostDeck.pop(), isGood: false },
+            { ...hostDeck.pop(), isGood: false },
+            { ...hostDeck.pop(), isGood: false }
+        ];
         p.isFinished = false;
+        p.selections = { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null };
     });
     
     gameState.tradeDeck = [hostDeck.pop()];
@@ -272,30 +288,42 @@ function handleHostAction(playerId, action, payload) {
         timestamp: new Date().toISOString()
     });
 
+    if (action === 'SELECT_CARD') {
+        player.selections = payload;
+        broadcastState();
+        return; // Do not log hover selections or advance turn
+    }
+
     if (gameState.currentPlayerIndex !== gameState.players.indexOf(player) && action !== 'MOVE_2_TRADE_RESOLVE') return;
     
     const currPlayer = gameState.players[gameState.currentPlayerIndex];
     
     if (action === 'MOVE_1') {
-        const badCardIdx = currPlayer.badCards.findIndex(c => c.id === payload.badCardId);
-        if (badCardIdx === -1) return;
+        const cardIdx = currPlayer.hand.findIndex(c => c.id === payload.badCardId);
+        if (cardIdx === -1) return;
         
-        const cardToTrade = currPlayer.badCards.splice(badCardIdx, 1)[0];
+        const cardToTrade = currPlayer.hand[cardIdx];
         const newGoodCard = gameState.tradeDeck.pop();
-        currPlayer.goodCards.push(newGoodCard);
+        newGoodCard.isGood = true;
+        
+        currPlayer.hand[cardIdx] = newGoodCard;
+        
+        cardToTrade.isGood = false;
         gameState.tradeDeck.push(cardToTrade);
         
         hostNextTurn();
     } 
     else if (action === 'MOVE_2_TAKE') {
         if (hostDeck.length === 0) return;
-        const goodCardIdx = currPlayer.goodCards.findIndex(c => c.id === payload.goodCardId);
-        if (goodCardIdx === -1) return;
+        const cardIdx = currPlayer.hand.findIndex(c => c.id === payload.goodCardId);
+        if (cardIdx === -1) return;
         
-        const cardToTrash = currPlayer.goodCards.splice(goodCardIdx, 1)[0];
+        const cardToTrash = currPlayer.hand[cardIdx];
         gameState.trashDeck.push(cardToTrash);
         
-        currPlayer.badCards.push(hostDeck.pop());
+        const newBadCard = { ...hostDeck.pop(), isGood: false };
+        currPlayer.hand[cardIdx] = newBadCard;
+        
         gameState.deckCount = hostDeck.length;
         
         hostNextTurn();
@@ -304,18 +332,25 @@ function handleHostAction(playerId, action, payload) {
         if (hostDeck.length === 0) return;
         const targetPlayer = gameState.players.find(p => p.id === payload.targetPlayerId);
         
-        const goodCardIdx = currPlayer.goodCards.findIndex(c => c.id === payload.goodCardId);
-        const badCardIdx = targetPlayer.badCards.findIndex(c => c.id === payload.targetBadCardId);
+        const goodCardIdx = currPlayer.hand.findIndex(c => c.id === payload.goodCardId);
+        const badCardIdx = targetPlayer.hand.findIndex(c => c.id === payload.targetBadCardId);
         
         if (goodCardIdx === -1 || badCardIdx === -1) return;
         
         // Trash good
-        gameState.trashDeck.push(currPlayer.goodCards.splice(goodCardIdx, 1)[0]);
-        // Steal bad as good
-        currPlayer.goodCards.push(targetPlayer.badCards.splice(badCardIdx, 1)[0]);
+        const cardToTrash = currPlayer.hand[goodCardIdx];
+        gameState.trashDeck.push(cardToTrash);
         
-        // Enter Trade State (waiting for target player to pick)
-        gameState.tradeState = { initiatorId: currPlayer.id, targetId: targetPlayer.id };
+        // Steal bad as good. Replaces the trashed good card!
+        const stolenCard = targetPlayer.hand[badCardIdx];
+        stolenCard.isGood = true;
+        currPlayer.hand[goodCardIdx] = stolenCard;
+        
+        // Victim's slot is temporarily empty.
+        targetPlayer.hand[badCardIdx] = { id: 'temp_trade_slot_' + targetPlayer.id, isTemp: true, isFaceDown: true };
+        
+        // Enter Trade State
+        gameState.tradeState = { initiatorId: currPlayer.id, targetId: targetPlayer.id, emptySlotIdx: badCardIdx };
         broadcastState();
     }
     else if (action === 'MOVE_2_TRADE_RESOLVE') {
@@ -324,14 +359,18 @@ function handleHostAction(playerId, action, payload) {
         const targetPlayer = gameState.players.find(p => p.id === gameState.tradeState.targetId);
         const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
         
-        const badCardIdx = initPlayer.badCards.findIndex(c => c.id === payload.chosenBadCardId);
+        const badCardIdx = initPlayer.hand.findIndex(c => c.id === payload.chosenBadCardId);
         if (badCardIdx === -1) return;
         
-        // Target steals init's bad card as good
-        targetPlayer.goodCards.push(initPlayer.badCards.splice(badCardIdx, 1)[0]);
+        // Target steals init's bad card as good. Replaces the temporary empty slot!
+        const stolenCard = initPlayer.hand[badCardIdx];
+        stolenCard.isGood = true;
+        targetPlayer.hand[gameState.tradeState.emptySlotIdx] = stolenCard;
         
-        // Init draws bad card from deck
-        initPlayer.badCards.push(hostDeck.pop());
+        // Init draws bad card from deck. Replaces the bad card target just stole!
+        const newBadCard = { ...hostDeck.pop(), isGood: false };
+        initPlayer.hand[badCardIdx] = newBadCard;
+        
         gameState.deckCount = hostDeck.length;
         
         gameState.tradeState = null;
@@ -340,9 +379,14 @@ function handleHostAction(playerId, action, payload) {
 }
 
 function hostNextTurn() {
+    // Clear selections
+    gameState.players.forEach(p => {
+        p.selections = { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null };
+    });
+
     // Check finished
     gameState.players.forEach(p => {
-        if (p.badCards.length === 0 && !p.isFinished) {
+        if (p.hand.every(c => c.isGood) && !p.isFinished) {
             p.isFinished = true;
         }
     });
@@ -469,6 +513,33 @@ function createCardElement(card, isFaceDown, isGood, onClick) {
     return el;
 }
 
+function selectCard(type, cardId, targetId = null) {
+    if (type === 'good') {
+        selectedOwnGoodCard = selectedOwnGoodCard === cardId ? null : cardId;
+        selectedOwnBadCard = null;
+    } else if (type === 'bad') {
+        selectedOwnBadCard = selectedOwnBadCard === cardId ? null : cardId;
+        selectedOwnGoodCard = null;
+    } else if (type === 'opponent') {
+        if (selectedOpponentBadCard === cardId) {
+            selectedOpponentBadCard = null;
+            tradeTargetPlayerIndex = null;
+        } else {
+            selectedOpponentBadCard = cardId;
+            tradeTargetPlayerIndex = targetId;
+        }
+    }
+    
+    sendAction('SELECT_CARD', {
+        goodCardId: selectedOwnGoodCard,
+        badCardId: selectedOwnBadCard,
+        targetBadCardId: selectedOpponentBadCard,
+        targetPlayerId: tradeTargetPlayerIndex
+    });
+    
+    renderGame();
+}
+
 function renderGame() {
     const originalState = gameState;
     if (isHost && gameState.status !== 'FINISHED') gameState = sanitizeStateFor(myPlayerId);
@@ -501,31 +572,38 @@ function renderGame() {
         trashSlot.classList.remove('empty');
     } else trashSlot.classList.add('empty');
 
+    // Helper to apply opponent selections visually
+    const applySelections = (card, el) => {
+        gameState.players.forEach(p => {
+            if (p.selections && (p.selections.goodCardId === card.id || p.selections.badCardId === card.id || p.selections.targetBadCardId === card.id)) {
+                el.classList.add('selected');
+                el.style.borderColor = p.id === gameState.currentPlayerIndex ? '#facc15' : 'var(--primary)'; // Yellow if current player
+            }
+        });
+    };
+
     // My Hand
     const handContainer = document.getElementById('current-player-hand');
     handContainer.innerHTML = '';
     
-    // 'me' is already declared at the top of renderGame
     if (me) {
-        me.goodCards.forEach(card => {
-            const el = createCardElement(card, false, true, (c) => {
+        me.hand.forEach(card => {
+            if (card.isTemp) {
+                handContainer.appendChild(createCardElement(card, true, false));
+                return;
+            }
+            
+            // You can't see your own bad cards, but you can see your own good cards
+            const isFaceDown = !card.isGood;
+            
+            const el = createCardElement(card, isFaceDown, card.isGood, (c) => {
                 if (!isMyTurn || gameState.tradeState) return;
-                selectedOwnGoodCard = selectedOwnGoodCard === c.id ? null : c.id;
-                selectedOwnBadCard = null;
-                renderGame();
+                selectCard(c.isGood ? 'good' : 'bad', c.id);
             });
-            if (selectedOwnGoodCard === card.id) el.classList.add('selected');
-            handContainer.appendChild(el);
-        });
-
-        me.badCards.forEach(card => {
-            const el = createCardElement(card, true, false, (c) => {
-                if (!isMyTurn || gameState.tradeState) return;
-                selectedOwnBadCard = selectedOwnBadCard === c.id ? null : c.id;
-                selectedOwnGoodCard = null;
-                renderGame();
-            });
-            if (selectedOwnBadCard === card.id) el.classList.add('selected');
+            
+            if (selectedOwnGoodCard === card.id || selectedOwnBadCard === card.id) el.classList.add('selected');
+            applySelections(card, el);
+            
             handContainer.appendChild(el);
         });
     }
@@ -545,22 +623,25 @@ function renderGame() {
         </div><div class="hand"></div>`;
         const oppHand = oppEl.querySelector('.hand');
 
-        p.goodCards.forEach(card => oppHand.appendChild(createCardElement(card, true, true)));
-
-        p.badCards.forEach(card => {
-            const el = createCardElement(card, false, false, (c) => {
+        p.hand.forEach(card => {
+            if (card.isTemp) {
+                oppHand.appendChild(createCardElement(card, true, false));
+                return;
+            }
+            
+            // Opponent Good cards are face down. Opponent Bad cards are face up.
+            const isFaceDown = card.isGood;
+            
+            const el = createCardElement(card, isFaceDown, card.isGood, (c) => {
                 if (!isMyTurn || p.isFinished || gameState.tradeState) return;
-                
-                if (selectedOpponentBadCard === c.id) {
-                    selectedOpponentBadCard = null;
-                    tradeTargetPlayerIndex = null;
-                } else {
-                    selectedOpponentBadCard = c.id;
-                    tradeTargetPlayerIndex = p.id;
+                if (!c.isGood) {
+                    selectCard('opponent', c.id, p.id);
                 }
-                renderGame();
             });
+            
             if (selectedOpponentBadCard === card.id) el.classList.add('selected');
+            applySelections(card, el);
+            
             oppHand.appendChild(el);
         });
 
@@ -658,7 +739,7 @@ function renderGameOver() {
         // Wait! In FINISHED state, the host should reveal everything!
         // To fix this without a complex change, we just sum up whatever we have. But clients won't have values.
         // For a quick fix, let's just show standard game over. (Host calculates sums, but we didn't send them yet).
-        const sum = p.goodCards.reduce((acc, c) => acc + (c.value||0), 0) + p.badCards.reduce((acc, c) => acc + (c.value||0), 0);
+        const sum = p.hand.reduce((acc, c) => acc + (c.value||0), 0);
         return { ...p, sum };
     });
     

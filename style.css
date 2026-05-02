@@ -548,7 +548,8 @@ p {
     .hand {
         justify-content: flex-start;
         overflow-x: auto;
-        width: 100%;
+        width: fit-content;
+        margin: 0 auto;
         max-width: 90vw;
         padding-bottom: 10px;
         -ms-overflow-style: none;
