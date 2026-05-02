@@ -42,7 +42,12 @@ if (supabaseClient) {
                 name: myName,
                 picture: myProfilePic
             }).then(({error}) => {
-                if (error) console.error("Failed to upsert user info:", error);
+                if (error) {
+                    console.error("Failed to upsert user info:", error);
+                    showToast("Database Error: " + error.message);
+                } else {
+                    console.log("User profile synced to database!");
+                }
             });
             
             document.getElementById('auth-section').classList.add('hidden');
