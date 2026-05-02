@@ -163,13 +163,7 @@ function broadcastState() {
         conn.send({ type: 'STATE', state: stateToSend });
     });
     
-    // Update host's own UI
-    if (gameState.status === 'FINISHED') {
-        gameState = JSON.parse(JSON.stringify(gameState)); // keep it un-sanitized
-    } else {
-        gameState = sanitizeStateFor(myPlayerId);
-    }
-    
+    // Update host's own UI without modifying the authoritative state
     if (gameState.status === 'LOBBY') renderLobby();
     else if (gameState.status === 'PLAYING') renderGame();
     else if (gameState.status === 'FINISHED') renderGameOver();
@@ -386,6 +380,9 @@ function sendAction(action, payload) {
 // RENDERING
 // ==========================================
 function renderLobby() {
+    const originalState = gameState;
+    if (isHost && gameState.status !== 'FINISHED') gameState = sanitizeStateFor(myPlayerId);
+
     document.getElementById('player-count').innerText = gameState.players.length;
     const list = document.getElementById('lobby-players');
     list.innerHTML = '';
@@ -398,6 +395,8 @@ function renderLobby() {
         }
         list.appendChild(li);
     });
+    
+    if (isHost && originalState.status !== 'FINISHED') gameState = originalState;
 }
 
 function createCardElement(card, isFaceDown, isGood, onClick) {
@@ -420,6 +419,9 @@ function createCardElement(card, isFaceDown, isGood, onClick) {
 }
 
 function renderGame() {
+    const originalState = gameState;
+    if (isHost && gameState.status !== 'FINISHED') gameState = sanitizeStateFor(myPlayerId);
+
     const me = gameState.players.find(p => p.id === myPlayerId);
     if (me && me.picture) {
         document.getElementById('my-name-display').innerHTML = `<img src="${me.picture}" class="profile-pic small" style="vertical-align: middle; margin-right: 5px;"> You are: ${me.name}`;
@@ -543,6 +545,8 @@ function renderGame() {
     }
 
     updateButtons(isMyTurn);
+    
+    if (isHost && originalState.status !== 'FINISHED') gameState = originalState;
 }
 
 function updateButtons(isMyTurn) {
@@ -594,6 +598,7 @@ function resetSelections() {
 }
 
 function renderGameOver() {
+    // Game over screen always shows the full un-sanitized state so players can see the final cards
     const scoreboard = document.getElementById('scoreboard');
     scoreboard.innerHTML = '';
     
