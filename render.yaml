@@ -2,8 +2,10 @@ services:
   - type: web
     name: gcbc-game
     env: static
-    buildCommand: 'sed -i "s/YOUR_GOOGLE_CLIENT_ID_HERE/$GOOGLE_CLIENT_ID/g" index.html'
+    buildCommand: 'sed -i "s|YOUR_SUPABASE_URL_HERE|$SUPABASE_URL|g" index.html && sed -i "s|YOUR_SUPABASE_KEY_HERE|$SUPABASE_KEY|g" index.html'
     staticPublishPath: ./
     envVars:
-      - key: GOOGLE_CLIENT_ID
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
         sync: false

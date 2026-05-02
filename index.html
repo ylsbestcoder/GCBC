@@ -7,8 +7,14 @@
     <link rel="stylesheet" href="style.css">
     <!-- PeerJS for WebRTC Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        window.ENV = {
+            SUPABASE_URL: "YOUR_SUPABASE_URL_HERE",
+            SUPABASE_KEY: "YOUR_SUPABASE_KEY_HERE"
+        };
+    </script>
 </head>
 <body>
     <div id="setup-screen" class="screen active">
@@ -18,21 +24,12 @@
             
             <div id="auth-section">
                 <p style="margin-bottom: 20px;">Sign in to play with your friends!</p>
-                <div id="g_id_onload"
-                     data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE"
-                     data-callback="handleCredentialResponse"
-                     data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin" style="display: flex; justify-content: center;"
-                     data-type="standard"
-                     data-size="large"
-                     data-theme="outline"
-                     data-text="sign_in_with"
-                     data-shape="rectangular"
-                     data-logo_alignment="left">
-                </div>
+                <button id="btn-google-signin" class="primary-btn" style="background: white; color: #333; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="width: 20px;">
+                    Sign in with Google
+                </button>
                 <p class="warning" style="margin-top: 15px; font-size: 0.8rem; color: #fbbf24;">
-                    Developer: Replace YOUR_GOOGLE_CLIENT_ID_HERE in index.html with your actual Client ID!
+                    Developer: Ensure Render injects SUPABASE_URL and SUPABASE_KEY.
                 </p>
             </div>
             

@@ -12,31 +12,43 @@ let myPlayerId = null;
 let myName = "";
 let myProfilePic = "";
 
-// Google Identity Auth
-function decodeJwtResponse(token) {
-    var base64Url = token.split('.')[1];
-    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-}
+// Supabase Initialization
+const supabaseUrl = window.ENV.SUPABASE_URL;
+const supabaseKey = window.ENV.SUPABASE_KEY;
+// Need to check if it's the placeholder (meaning running locally without injection)
+const isLocal = supabaseUrl === "YOUR_SUPABASE_URL_HERE";
+const supabase = isLocal ? null : window.supabase.createClient(supabaseUrl, supabaseKey);
 
-window.handleCredentialResponse = function(response) {
-    const payload = decodeJwtResponse(response.credential);
-    myName = payload.name;
-    myProfilePic = payload.picture;
-    
+if (supabase) {
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            myName = session.user.user_metadata.full_name || session.user.email.split('@')[0];
+            myProfilePic = session.user.user_metadata.avatar_url || "";
+            
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('setup-options').classList.remove('hidden');
+            
+            document.getElementById('user-profile-name').innerText = myName;
+            if (myProfilePic) {
+                const img = document.getElementById('user-profile-img');
+                img.src = myProfilePic;
+                img.classList.remove('hidden');
+            }
+        }
+    });
+
+    document.getElementById('btn-google-signin').addEventListener('click', async () => {
+        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+        if (error) showToast("Login failed: " + error.message);
+    });
+} else {
+    // Local dev bypass
+    console.warn("Supabase not configured. Bypassing auth for local testing.");
+    myName = "Local Dev";
     document.getElementById('auth-section').classList.add('hidden');
     document.getElementById('setup-options').classList.remove('hidden');
-    
     document.getElementById('user-profile-name').innerText = myName;
-    if (myProfilePic) {
-        const img = document.getElementById('user-profile-img');
-        img.src = myProfilePic;
-        img.classList.remove('hidden');
-    }
-};
+}
 
 // Game State (Authoritative on Host, Synced to Clients)
 let gameState = {
@@ -594,6 +606,17 @@ function renderGameOver() {
         row.innerHTML = `<span>${idx === 0 ? '🏆 ' : ''}${s.name}</span> <span>${s.sum} pts</span>`;
         scoreboard.appendChild(row);
     });
+    
+    if (isHost && supabase) {
+        // Record match in Supabase
+        supabase.from('matches').insert([{
+            winner: scores[0].name,
+            players: scores.map(s => s.name).join(', ')
+        }]).then(({error}) => {
+            if (error) console.error("Failed to save match:", error);
+            else console.log("Match saved to Supabase!");
+        });
+    }
     
     gameOverScreen.classList.add('active');
 }
