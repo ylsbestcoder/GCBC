@@ -17,18 +17,18 @@ const supabaseUrl = window.ENV.SUPABASE_URL;
 const supabaseKey = window.ENV.SUPABASE_KEY;
 // Need to check if it's the placeholder (meaning running locally without injection)
 const isLocal = supabaseUrl === "YOUR_SUPABASE_URL_HERE";
-let supabase = null;
+let supabaseClient = null;
 
 try {
     if (!isLocal && supabaseUrl && supabaseUrl.trim() !== "") {
-        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
     }
 } catch (e) {
     console.error("Supabase initialization failed:", e);
 }
 
-if (supabase) {
-    supabase.auth.onAuthStateChange((event, session) => {
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             myName = session.user.user_metadata.full_name || session.user.email.split('@')[0];
             myProfilePic = session.user.user_metadata.avatar_url || "";
@@ -46,7 +46,7 @@ if (supabase) {
     });
 
     document.getElementById('btn-google-signin').addEventListener('click', async () => {
-        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+        const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
         if (error) showToast("Login failed: " + error.message);
     });
 } else {
@@ -615,9 +615,9 @@ function renderGameOver() {
         scoreboard.appendChild(row);
     });
     
-    if (isHost && supabase) {
+    if (isHost && supabaseClient) {
         // Record match in Supabase
-        supabase.from('matches').insert([{
+        supabaseClient.from('matches').insert([{
             winner: scores[0].name,
             players: scores.map(s => s.name).join(', ')
         }]).then(({error}) => {
