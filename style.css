@@ -489,9 +489,28 @@ p {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+    }
+
+    .screen {
+        position: relative;
+        height: auto;
+        min-height: 100vh;
+        align-items: flex-start;
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
     .game-container {
         padding: 10px;
-        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: visible;
         justify-content: flex-start;
         gap: 20px;
     }
@@ -508,18 +527,30 @@ p {
         overflow-x: auto;
         justify-content: flex-start;
         padding-bottom: 10px;
-        /* Hide scrollbar for sleekness */
         -ms-overflow-style: none;
         scrollbar-width: none;
+        width: 100%;
+        max-width: 100vw;
     }
     .opponents-area::-webkit-scrollbar { display: none; }
+    
+    .opponent {
+        flex-shrink: 0;
+    }
+
+    .card {
+        width: 65px;
+        height: 95px;
+        font-size: 1.5rem;
+        border-radius: 8px;
+    }
     
     .hand {
         justify-content: flex-start;
         overflow-x: auto;
+        width: 100%;
         max-width: 90vw;
         padding-bottom: 10px;
-        /* Hide scrollbar for sleekness */
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
@@ -528,6 +559,11 @@ p {
     .action-buttons {
         flex-wrap: wrap;
         justify-content: center;
+    }
+
+    .action-btn {
+        padding: 8px 12px;
+        font-size: 0.9rem;
     }
     
     .glass-panel {
