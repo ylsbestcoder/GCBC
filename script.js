@@ -642,3 +642,39 @@ function showToast(msg) {
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
+
+document.getElementById('btn-main-menu').addEventListener('click', () => {
+    // 1. Clean up PeerJS connections
+    if (hostConn) { hostConn.close(); hostConn = null; }
+    clientConns.forEach(c => c.close());
+    clientConns = [];
+    if (peer) { peer.destroy(); peer = null; }
+
+    // 2. Reset Game State
+    isHost = false;
+    gameState = {
+        status: 'LOBBY',
+        players: [],
+        deckCount: 0,
+        tradeDeck: [],
+        trashDeck: [],
+        currentPlayerIndex: 0,
+        tradeState: null
+    };
+
+    // 3. Reset UI Selections
+    resetSelections();
+
+    // 4. Switch Screens
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('setup-screen').classList.add('active');
+    
+    // Check if user is signed in to show the correct setup options
+    if (myName !== "Local Dev" && myName !== "") {
+        document.getElementById('auth-section').classList.add('hidden');
+        document.getElementById('setup-options').classList.remove('hidden');
+    } else {
+        document.getElementById('auth-section').classList.remove('hidden');
+        document.getElementById('setup-options').classList.add('hidden');
+    }
+});
