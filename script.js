@@ -444,7 +444,7 @@ function renderGame() {
     const handContainer = document.getElementById('current-player-hand');
     handContainer.innerHTML = '';
     
-    const me = gameState.players.find(p => p.id === myPlayerId);
+    // 'me' is already declared at the top of renderGame
     if (me) {
         me.goodCards.forEach(card => {
             const el = createCardElement(card, false, true, (c) => {
