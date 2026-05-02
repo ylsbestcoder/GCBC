@@ -17,7 +17,15 @@ const supabaseUrl = window.ENV.SUPABASE_URL;
 const supabaseKey = window.ENV.SUPABASE_KEY;
 // Need to check if it's the placeholder (meaning running locally without injection)
 const isLocal = supabaseUrl === "YOUR_SUPABASE_URL_HERE";
-const supabase = isLocal ? null : window.supabase.createClient(supabaseUrl, supabaseKey);
+let supabase = null;
+
+try {
+    if (!isLocal && supabaseUrl && supabaseUrl.trim() !== "") {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    }
+} catch (e) {
+    console.error("Supabase initialization failed:", e);
+}
 
 if (supabase) {
     supabase.auth.onAuthStateChange((event, session) => {
