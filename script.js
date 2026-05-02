@@ -9,8 +9,10 @@ let hostConn = null; // Used by Client to talk to Host
 let clientConns = []; // Used by Host to talk to Clients
 let isHost = false;
 let myPlayerId = null;
+let mySupabaseId = null;
 let myName = "";
 let myProfilePic = "";
+let matchMoveLog = [];
 
 // Supabase Initialization
 const supabaseUrl = window.ENV.SUPABASE_URL;
@@ -30,8 +32,18 @@ try {
 if (supabaseClient) {
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
+            mySupabaseId = session.user.id;
             myName = session.user.user_metadata.full_name || session.user.email.split('@')[0];
             myProfilePic = session.user.user_metadata.avatar_url || "";
+            
+            // Upsert user profile to database
+            supabaseClient.from('users').upsert({
+                id: mySupabaseId,
+                name: myName,
+                picture: myProfilePic
+            }).then(({error}) => {
+                if (error) console.error("Failed to upsert user info:", error);
+            });
             
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('setup-options').classList.remove('hidden');
@@ -125,7 +137,7 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             document.getElementById('btn-start-game').classList.remove('hidden');
             document.getElementById('waiting-msg').classList.add('hidden');
             
-            gameState.players.push({ id: myPlayerId, name: myName, picture: myProfilePic, badCards: [], goodCards: [], isFinished: false });
+            gameState.players.push({ id: myPlayerId, name: myName, picture: myProfilePic, supabaseId: mySupabaseId, badCards: [], goodCards: [], isFinished: false });
             renderLobby();
         });
 
@@ -133,9 +145,14 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             clientConns.push(conn);
             
             conn.on('data', (data) => {
-                if (data.type === 'JOIN') {
+                if (data.type === 'JOIN_REQUEST') {
                     const newPlayerId = gameState.players.length;
-                    gameState.players.push({ id: newPlayerId, name: data.name, picture: data.picture, badCards: [], goodCards: [], isFinished: false });
+                    gameState.players.push({
+                        id: newPlayerId,
+                        name: data.name,
+                        picture: data.picture,
+                        supabaseId: data.supabaseId,
+                        badCards: [], goodCards: [], isFinished: false });
                     conn.playerId = newPlayerId;
                     renderLobby();
                     broadcastState();
@@ -228,6 +245,9 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     gameState.status = 'PLAYING';
     gameState.currentPlayerIndex = 0;
     
+    // Reset match log when game starts
+    matchMoveLog = [];
+
     lobbyScreen.classList.remove('active');
     gameScreen.classList.add('active');
     broadcastState();
@@ -235,7 +255,19 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
 
 // Host logic handling incoming actions
 function handleHostAction(playerId, action, payload) {
-    if (playerId !== gameState.currentPlayerIndex && action !== 'MOVE_2_TRADE_RESOLVE') return;
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return;
+    
+    // Log the move
+    matchMoveLog.push({
+        playerId: playerId,
+        playerName: player.name,
+        action: action,
+        payload: payload,
+        timestamp: new Date().toISOString()
+    });
+
+    if (gameState.currentPlayerIndex !== gameState.players.indexOf(player) && action !== 'MOVE_2_TRADE_RESOLVE') return;
     
     const currPlayer = gameState.players[gameState.currentPlayerIndex];
     
@@ -338,7 +370,12 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
         
         hostConn.on('open', () => {
             isHost = false;
-            hostConn.send({ type: 'JOIN', name: myName, picture: myProfilePic });
+            hostConn.send({ 
+                type: 'JOIN_REQUEST', 
+                name: myName, 
+                picture: myProfilePic,
+                supabaseId: mySupabaseId 
+            });
             
             document.getElementById('lobby-code').innerText = code;
             setupScreen.classList.remove('active');
@@ -630,13 +667,24 @@ function renderGameOver() {
     });
     
     if (isHost && supabaseClient) {
-        // Record match in Supabase
+        // Record match in Supabase with moves
         supabaseClient.from('matches').insert([{
             winner: scores[0].name,
-            players: scores.map(s => s.name).join(', ')
+            players: scores.map(s => s.name).join(', '),
+            moves: matchMoveLog
         }]).then(({error}) => {
             if (error) console.error("Failed to save match:", error);
             else console.log("Match saved to Supabase!");
+        });
+
+        // Update User Win/Loss Stats
+        scores.forEach((s, idx) => {
+            if (!s.supabaseId) return; // Skip players without an account (local dev)
+            if (idx === 0) {
+                supabaseClient.rpc('increment_win', { user_id: s.supabaseId }).then();
+            } else {
+                supabaseClient.rpc('increment_loss', { user_id: s.supabaseId }).then();
+            }
         });
     }
     
