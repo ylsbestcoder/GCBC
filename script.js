@@ -49,6 +49,14 @@ if (supabaseClient) {
         const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
         if (error) showToast("Login failed: " + error.message);
     });
+
+    document.getElementById('btn-switch-account').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        myName = "";
+        myProfilePic = "";
+        document.getElementById('setup-options').classList.add('hidden');
+        document.getElementById('auth-section').classList.remove('hidden');
+    });
 } else {
     // Local dev bypass
     console.warn("Supabase not configured. Bypassing auth for local testing.");
@@ -56,6 +64,7 @@ if (supabaseClient) {
     document.getElementById('auth-section').classList.add('hidden');
     document.getElementById('setup-options').classList.remove('hidden');
     document.getElementById('user-profile-name').innerText = myName;
+    document.getElementById('btn-switch-account').style.display = 'none'; // Hide switch account in local dev
 }
 
 // Game State (Authoritative on Host, Synced to Clients)
