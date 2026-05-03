@@ -397,12 +397,18 @@ p {
 }
 .card.face-down::before, .card.face-down::after { content: ''; }
 
-/* Card Values (Color coding) */
-.card.val-negative { background-color: #fdf2f8; color: #be185d; } /* Deep Pink */
-.card.val-zero { background-color: #fefce8; color: #a16207; } /* Golden */
-.card.val-low { background-color: #f0fdf4; color: #15803d; } /* Green */
-.card.val-mid { background-color: #fff7ed; color: #c2410c; } /* Orange */
-.card.val-high { background-color: #fef2f2; color: #b91c1c; } /* Red */
+/* Card Values (Color coding for 0 to 10) */
+.card.val-0 { background-color: #fefce8; color: #a16207; } /* Golden */
+.card.val-1 { background-color: #f7fee7; color: #4d7c0f; } /* Lime */
+.card.val-2 { background-color: #f0fdf4; color: #15803d; } /* Green */
+.card.val-3 { background-color: #ecfdf5; color: #047857; } /* Emerald */
+.card.val-4 { background-color: #f0fdfa; color: #0f766e; } /* Teal */
+.card.val-5 { background-color: #ecfeff; color: #0e7490; } /* Cyan */
+.card.val-6 { background-color: #eff6ff; color: #1d4ed8; } /* Blue */
+.card.val-7 { background-color: #eef2ff; color: #4338ca; } /* Indigo */
+.card.val-8 { background-color: #faf5ff; color: #7e22ce; } /* Purple */
+.card.val-9 { background-color: #fdf4ff; color: #a21caf; } /* Fuchsia */
+.card.val-10 { background-color: #fef2f2; color: #b91c1c; } /* Red */
 .card.val-unknown { background-color: #f8fafc; color: #475569; } /* Gray */
 
 .card.good-card { border: 2px solid #4ade80; }
