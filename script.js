@@ -122,25 +122,24 @@ function initPeer() {
 // HOST LOGIC
 // ==========================================
 document.getElementById('btn-create-room').addEventListener('click', () => {
-    if (!peer) initPeer();
+    // Generate short room code (mapped to Peer ID)
+    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     
-    peer.on('open', (id) => {
+    if (peer) {
+        peer.destroy();
+    }
+    
+    peer = new Peer(`gcbc-game-${roomCode}`);
+    
+    peer.on('open', () => {
         isHost = true;
         myPlayerId = 0;
         
-        // Generate short room code (mapped to Peer ID)
-        const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-        // Since we are using free PeerJS server, we will just use the code as prefix for our custom ID
-        // Wait, to force a specific ID, we must recreate Peer.
-        peer.destroy();
-        peer = new Peer(`gcbc-game-${roomCode}`);
-        
-        peer.on('open', () => {
-            document.getElementById('lobby-code').innerText = roomCode;
-            setupScreen.classList.remove('active');
-            lobbyScreen.classList.add('active');
-            document.getElementById('btn-start-game').classList.remove('hidden');
-            document.getElementById('waiting-msg').classList.add('hidden');
+        document.getElementById('lobby-code').innerText = roomCode;
+        setupScreen.classList.remove('active');
+        lobbyScreen.classList.add('active');
+        document.getElementById('btn-start-game').classList.remove('hidden');
+        document.getElementById('waiting-msg').classList.add('hidden');
             
             gameState.players.push({ 
                 id: myPlayerId, 
@@ -251,7 +250,6 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     // Deal
     gameState.players.forEach(p => {
         p.hand = [
-            { ...hostDeck.pop(), isGood: false },
             { ...hostDeck.pop(), isGood: false },
             { ...hostDeck.pop(), isGood: false },
             { ...hostDeck.pop(), isGood: false }
@@ -412,9 +410,7 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
     const code = document.getElementById('join-code').value.toUpperCase();
     if (!code) return showToast('Enter a Room Code');
     
-    if (!peer) initPeer();
-    
-    peer.on('open', () => {
+    const joinRoom = () => {
         hostConn = peer.connect(`gcbc-game-${code}`);
         
         hostConn.on('open', () => {
@@ -460,7 +456,19 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
         });
         
         hostConn.on('error', () => showToast('Failed to connect to host.'));
-    });
+    };
+
+    if (!peer) {
+        initPeer();
+        peer.on('open', joinRoom);
+    } else if (!peer.open && !peer.disconnected) {
+        peer.on('open', joinRoom);
+    } else if (peer.disconnected) {
+        peer.reconnect();
+        peer.on('open', joinRoom);
+    } else {
+        joinRoom();
+    }
 });
 
 function sendAction(action, payload) {
