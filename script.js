@@ -186,7 +186,6 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
                 showToast('Room Code collision. Try again.');
             }
         });
-    });
 });
 
 function broadcastState() {
