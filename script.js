@@ -353,8 +353,8 @@ function handleHostAction(playerId, action, payload) {
     else if (action === 'MOVE_2_TRADE_RESOLVE') {
         if (!gameState.tradeState || playerId != gameState.tradeState.targetId) return;
         
-        const targetPlayer = gameState.players.find(p => p.id === gameState.tradeState.targetId);
-        const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
+        const targetPlayer = gameState.players.find(p => p.id == gameState.tradeState.targetId);
+        const initPlayer = gameState.players.find(p => p.id == gameState.tradeState.initiatorId);
         
         const badCardIdx = initPlayer.hand.findIndex(c => c.id === payload.chosenBadCardId);
         if (badCardIdx === -1) return;
@@ -376,6 +376,8 @@ function handleHostAction(playerId, action, payload) {
 }
 
 function hostNextTurn() {
+    gameState.isTransitioning = true;
+    
     // Clear selections immediately so people stop hovering
     gameState.players.forEach(p => {
         p.selections = { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null };
@@ -395,6 +397,7 @@ function hostNextTurn() {
 
         if (gameState.players.every(p => p.isFinished)) {
             gameState.status = 'FINISHED';
+            gameState.isTransitioning = false;
             broadcastState();
             return;
         }
@@ -404,8 +407,9 @@ function hostNextTurn() {
             gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
         } while (gameState.players[gameState.currentPlayerIndex].isFinished);
         
+        gameState.isTransitioning = false;
         broadcastState();
-    }, 500); // 0.5s delay
+    }, 1000); // 1.0s delay
 }
 
 // ==========================================
@@ -704,7 +708,7 @@ function updateButtons(isMyTurn) {
     const btn2Take = document.getElementById('btn-move-2-take');
     const btn2Trade = document.getElementById('btn-move-2-trade');
 
-    if (!isMyTurn || gameState.tradeState) {
+    if (!isMyTurn || gameState.tradeState || gameState.isTransitioning) {
         btn1.disabled = true;
         btn2Take.disabled = true;
         btn2Trade.disabled = true;
