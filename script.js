@@ -509,8 +509,18 @@ function createCardElement(card, isFaceDown, isGood, onClick) {
     if (!isFaceDown && card.value !== null) {
         el.dataset.value = card.value;
         el.innerText = card.value;
+        
+        let valClass = '';
+        if (card.value < 0) valClass = 'val-negative';
+        else if (card.value === 0) valClass = 'val-zero';
+        else if (card.value <= 5) valClass = 'val-low';
+        else if (card.value <= 9) valClass = 'val-mid';
+        else valClass = 'val-high';
+        el.classList.add(valClass);
+        
     } else if (!isFaceDown && card.value === null) {
         el.innerText = '?'; // Unknown value fallback
+        el.classList.add('val-unknown');
     }
     if (onClick) {
         el.addEventListener('click', (e) => {

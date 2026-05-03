@@ -360,7 +360,9 @@ p {
     width: var(--card-width);
     height: var(--card-height);
     border-radius: var(--card-radius);
-    background: white;
+    background-color: white;
+    /* Subtle noise texture */
+    background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.06"/></svg>');
     color: black;
     display: flex;
     align-items: center;
@@ -386,14 +388,25 @@ p {
 .card::after { bottom: 5px; right: 8px; transform: rotate(180deg); }
 
 .card.face-down {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    border: 2px solid #334155;
+    background-color: #1e293b;
+    background-image: url('card_back.png');
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #a78bfa;
     color: transparent;
 }
 .card.face-down::before, .card.face-down::after { content: ''; }
 
-.card.good-card { border: 2px solid #22c55e; }
-.card.bad-card { border: 2px solid #ef4444; }
+/* Card Values (Color coding) */
+.card.val-negative { background-color: #fdf2f8; color: #be185d; } /* Deep Pink */
+.card.val-zero { background-color: #fefce8; color: #a16207; } /* Golden */
+.card.val-low { background-color: #f0fdf4; color: #15803d; } /* Green */
+.card.val-mid { background-color: #fff7ed; color: #c2410c; } /* Orange */
+.card.val-high { background-color: #fef2f2; color: #b91c1c; } /* Red */
+.card.val-unknown { background-color: #f8fafc; color: #475569; } /* Gray */
+
+.card.good-card { border: 2px solid #4ade80; }
+.card.bad-card { border: 2px solid #f87171; }
 
 .card:hover:not(.face-down) {
     transform: translateY(-5px);
