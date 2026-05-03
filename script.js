@@ -175,6 +175,10 @@ document.getElementById('btn-create-room').addEventListener('click', (e) => {
                         isFinished: false 
                     });
                     conn.playerId = newPlayerId;
+                    
+                    // Explicitly tell the client who they are!
+                    conn.send({ type: 'WELCOME', playerId: newPlayerId });
+                    
                     renderLobby();
                     broadcastState();
                 } else if (data.type === 'ACTION') {
@@ -447,18 +451,12 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
         });
         
         hostConn.on('data', (data) => {
-            if (data.type === 'STATE') {
+            if (data.type === 'WELCOME') {
+                myPlayerId = data.playerId;
+            }
+            else if (data.type === 'STATE') {
                 const oldStatus = gameState.status;
                 gameState = data.state;
-                
-                // Assign myPlayerId if not set by looking at the last added player matching name
-                // Note: Better to let Host assign it via connection ID, but Host sends it correctly
-                if (myPlayerId === null && gameState.players.length > 0) {
-                    // Match by supabaseId if logged in, otherwise by name
-                    const myProfile = gameState.players.find(p => p.supabaseId === mySupabaseId && mySupabaseId !== null) 
-                                   || gameState.players.find(p => p.name === myName);
-                    if (myProfile) myPlayerId = myProfile.id;
-                }
                 
                 if (gameState.status === 'LOBBY') renderLobby();
                 else if (gameState.status === 'PLAYING') {
