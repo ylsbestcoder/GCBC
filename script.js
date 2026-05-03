@@ -327,7 +327,7 @@ function handleHostAction(playerId, action, payload) {
     }
     else if (action === 'MOVE_2_TRADE_START') {
         if (hostDeck.length === 0) return;
-        const targetPlayer = gameState.players.find(p => p.id === payload.targetPlayerId);
+        const targetPlayer = gameState.players.find(p => p.id == payload.targetPlayerId);
         
         const goodCardIdx = currPlayer.hand.findIndex(c => c.id === payload.goodCardId);
         const badCardIdx = targetPlayer.hand.findIndex(c => c.id === payload.targetBadCardId);
@@ -351,7 +351,7 @@ function handleHostAction(playerId, action, payload) {
         broadcastState();
     }
     else if (action === 'MOVE_2_TRADE_RESOLVE') {
-        if (!gameState.tradeState || playerId !== gameState.tradeState.targetId) return;
+        if (!gameState.tradeState || playerId != gameState.tradeState.targetId) return;
         
         const targetPlayer = gameState.players.find(p => p.id === gameState.tradeState.targetId);
         const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
