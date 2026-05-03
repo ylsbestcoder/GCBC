@@ -433,10 +433,11 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
                 
                 // Assign myPlayerId if not set by looking at the last added player matching name
                 // Note: Better to let Host assign it via connection ID, but Host sends it correctly
-                // Since Host sends customized state, we can find our ID by seeing which player has `badCards.value === null`
                 if (myPlayerId === null && gameState.players.length > 0) {
-                    const me = gameState.players.find(p => p.name === myName && p.badCards.some(c => c.value === null));
-                    if (me) myPlayerId = me.id;
+                    // Match by supabaseId if logged in, otherwise by name
+                    const myProfile = gameState.players.find(p => p.supabaseId === mySupabaseId && mySupabaseId !== null) 
+                                   || gameState.players.find(p => p.name === myName);
+                    if (myProfile) myPlayerId = myProfile.id;
                 }
                 
                 if (gameState.status === 'LOBBY') renderLobby();
@@ -665,7 +666,7 @@ function renderGame() {
             const cardsContainer = document.getElementById('trade-modal-cards');
             cardsContainer.innerHTML = '';
             
-            initPlayer.badCards.forEach(card => {
+            initPlayer.hand.filter(c => !c.isGood && !c.isTemp).forEach(card => {
                 // Should be visible to me
                 const el = createCardElement(card, false, false, (c) => {
                     sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
