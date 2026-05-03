@@ -376,30 +376,36 @@ function handleHostAction(playerId, action, payload) {
 }
 
 function hostNextTurn() {
-    // Clear selections
+    // Clear selections immediately so people stop hovering
     gameState.players.forEach(p => {
         p.selections = { goodCardId: null, badCardId: null, targetBadCardId: null, targetPlayerId: null };
     });
-
-    // Check finished
-    gameState.players.forEach(p => {
-        if (p.hand.every(c => c.isGood) && !p.isFinished) {
-            p.isFinished = true;
-        }
-    });
-
-    if (gameState.players.every(p => p.isFinished)) {
-        gameState.status = 'FINISHED';
-        broadcastState();
-        return;
-    }
     
-    // Advance to next unfinished player
-    do {
-        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-    } while (gameState.players[gameState.currentPlayerIndex].isFinished);
-    
+    // Broadcast immediately so players see the result of the move (the new hand)
+    // but the turn indicator hasn't moved yet.
     broadcastState();
+
+    setTimeout(() => {
+        // Check finished
+        gameState.players.forEach(p => {
+            if (p.hand.every(c => c.isGood) && !p.isFinished) {
+                p.isFinished = true;
+            }
+        });
+
+        if (gameState.players.every(p => p.isFinished)) {
+            gameState.status = 'FINISHED';
+            broadcastState();
+            return;
+        }
+        
+        // Advance to next unfinished player
+        do {
+            gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        } while (gameState.players[gameState.currentPlayerIndex].isFinished);
+        
+        broadcastState();
+    }, 500); // 0.5s delay
 }
 
 // ==========================================
