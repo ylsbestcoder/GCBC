@@ -848,6 +848,14 @@ document.getElementById('btn-main-menu').addEventListener('click', () => {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('setup-screen').classList.add('active');
     
+    // 5. Reset Setup Buttons
+    const hostBtn = document.getElementById('btn-create-room');
+    const joinBtn = document.getElementById('btn-join-room');
+    hostBtn.disabled = false;
+    hostBtn.innerText = "Create Room";
+    joinBtn.disabled = false;
+    joinBtn.innerText = "Join Room";
+    
     // Check if user is signed in to show the correct setup options
     if (myName !== "Local Dev" && myName !== "") {
         document.getElementById('auth-section').classList.add('hidden');
