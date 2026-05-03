@@ -51,6 +51,8 @@
                     </div>
                     <button id="btn-join-room" class="primary-btn secondary">Join Room</button>
                 </div>
+
+                <button id="btn-how-to-play" class="text-btn" style="margin-top: 20px; color: #a78bfa;">How to Play?</button>
             </div>
         </div>
     </div>
@@ -142,6 +144,32 @@
     </div>
 
     <div id="toast-container"></div>
+
+    <!-- Instructions Modal -->
+    <div id="how-to-play-modal" class="modal-overlay">
+        <div class="glass-panel modal-content instructions-modal">
+            <h2>How to Play GCBC</h2>
+            <div class="instructions-body">
+                <section>
+                    <h3>The Goal</h3>
+                    <p>Be the first player to turn all <strong>3 Bad Cards</strong> into <strong>Good Cards</strong>. Good Cards have their values hidden from opponents.</p>
+                </section>
+                <section>
+                    <h3>Setup</h3>
+                    <p>Everyone starts with 3 Bad Cards. You can see your opponents' Bad Cards, but they are hidden from you! You can see your own Good Cards, but opponents can't.</p>
+                </section>
+                <section>
+                    <h3>Moves</h3>
+                    <ul>
+                        <li><strong>Move 1 (Swap):</strong> Give 1 Bad Card to the center Trade pile and take the card that was there. Your new card becomes a <strong>Good Card</strong>.</li>
+                        <li><strong>Move 2 (Take):</strong> Sacrifice (Trash) 1 of your Good Cards to take a card from the deck. This new card becomes a <strong>Good Card</strong>.</li>
+                        <li><strong>Move 2 (Trade):</strong> Sacrifice (Trash) 1 of your Good Cards. Steal a Bad Card from an opponent (it becomes your Good Card). The opponent then steals a Bad Card from you (it becomes their Good Card). Finally, you draw an extra Bad Card from the deck.</li>
+                    </ul>
+                </section>
+            </div>
+            <button id="btn-close-instructions" class="primary-btn">Got it!</button>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

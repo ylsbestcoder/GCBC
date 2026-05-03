@@ -865,3 +865,12 @@ document.getElementById('btn-main-menu').addEventListener('click', () => {
         document.getElementById('setup-options').classList.add('hidden');
     }
 });
+
+// Instructions Modal Logic
+document.getElementById('btn-how-to-play').addEventListener('click', () => {
+    document.getElementById('how-to-play-modal').classList.add('active');
+});
+
+document.getElementById('btn-close-instructions').addEventListener('click', () => {
+    document.getElementById('how-to-play-modal').classList.remove('active');
+});
