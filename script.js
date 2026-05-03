@@ -121,7 +121,11 @@ function initPeer() {
 // ==========================================
 // HOST LOGIC
 // ==========================================
-document.getElementById('btn-create-room').addEventListener('click', () => {
+document.getElementById('btn-create-room').addEventListener('click', (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.innerText = "Creating...";
+    
     // Generate short room code (mapped to Peer ID)
     const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     
@@ -158,6 +162,8 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
             
             conn.on('data', (data) => {
                 if (data.type === 'JOIN_REQUEST') {
+                    if (conn.playerId !== undefined) return; // Already joined
+                    
                     const newPlayerId = gameState.players.length;
                     gameState.players.push({
                         id: newPlayerId,
@@ -415,9 +421,13 @@ function hostNextTurn() {
 // ==========================================
 // CLIENT LOGIC
 // ==========================================
-document.getElementById('btn-join-room').addEventListener('click', () => {
+document.getElementById('btn-join-room').addEventListener('click', (e) => {
+    const btn = e.target;
     const code = document.getElementById('join-code').value.toUpperCase();
     if (!code) return showToast('Enter a Room Code');
+    
+    btn.disabled = true;
+    btn.innerText = "Joining...";
     
     const joinRoom = () => {
         hostConn = peer.connect(`gcbc-game-${code}`);
@@ -465,7 +475,11 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
             }
         });
         
-        hostConn.on('error', () => showToast('Failed to connect to host.'));
+        hostConn.on('error', () => {
+            showToast('Failed to connect to host.');
+            btn.disabled = false;
+            btn.innerText = "Join Room";
+        });
     };
 
     if (!peer) {
