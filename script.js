@@ -118,6 +118,87 @@ function initPeer() {
     });
 }
 
+// Public Room Tracking
+let currentPublicRoomCode = null;
+
+async function hostPublicRoom(roomCode) {
+    if (!supabaseClient) return;
+    currentPublicRoomCode = roomCode;
+    try {
+        const { error } = await supabaseClient.from('rooms').insert({
+            id: roomCode,
+            host_name: myName,
+            player_count: 1,
+            status: 'LOBBY',
+            is_public: true
+        });
+        if (error) console.error("Failed to list public room:", error);
+    } catch (e) {
+        console.error("Public rooms table might not exist.", e);
+    }
+}
+
+async function updatePublicRoomStatus() {
+    if (!supabaseClient || !currentPublicRoomCode || !isHost) return;
+    try {
+        await supabaseClient.from('rooms').update({
+            player_count: gameState.players.length,
+            status: gameState.status
+        }).eq('id', currentPublicRoomCode);
+    } catch (e) {}
+}
+
+async function removePublicRoom() {
+    if (!supabaseClient || !currentPublicRoomCode || !isHost) return;
+    try {
+        await supabaseClient.from('rooms').delete().eq('id', currentPublicRoomCode);
+        currentPublicRoomCode = null;
+    } catch (e) {}
+}
+
+async function refreshPublicRooms() {
+    if (!supabaseClient) return;
+    const listEl = document.getElementById('public-rooms-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p style="font-size: 0.8rem; opacity: 0.6;">Refreshing...</p>';
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('rooms')
+            .select('*')
+            .eq('status', 'LOBBY')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        listEl.innerHTML = '';
+        if (!data || data.length === 0) {
+            listEl.innerHTML = '<p style="font-size: 0.8rem; opacity: 0.6;">No public rooms active.</p>';
+            return;
+        }
+        
+        data.forEach(room => {
+            const item = document.createElement('div');
+            item.className = 'public-room-item';
+            item.innerHTML = `
+                <div>
+                    <div style="font-weight: 600;">${room.host_name}'s Game</div>
+                    <div class="room-tag">${room.id}</div>
+                </div>
+                <div class="room-players">${room.player_count}/4 Players</div>
+            `;
+            item.onclick = () => {
+                document.getElementById('join-code').value = room.id;
+                document.getElementById('btn-join-room').click();
+            };
+            listEl.appendChild(item);
+        });
+    } catch (e) {
+        listEl.innerHTML = '<p style="font-size: 0.8rem; color: #f87171;">Failed to load public rooms.</p>';
+    }
+}
+
 // ==========================================
 // HOST LOGIC
 // ==========================================
@@ -144,6 +225,11 @@ document.getElementById('btn-create-room').addEventListener('click', (e) => {
         lobbyScreen.classList.add('active');
         document.getElementById('btn-start-game').classList.remove('hidden');
         document.getElementById('waiting-msg').classList.add('hidden');
+        
+        // Public room registration
+        if (document.getElementById('check-public-game').checked) {
+            hostPublicRoom(roomCode);
+        }
             
             gameState.players.push({ 
                 id: myPlayerId, 
@@ -181,6 +267,7 @@ document.getElementById('btn-create-room').addEventListener('click', (e) => {
                     
                     renderLobby();
                     broadcastState();
+                    updatePublicRoomStatus();
                 } else if (data.type === 'ACTION') {
                     handleHostAction(conn.playerId, data.action, data.payload);
                 }
@@ -279,6 +366,7 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     lobbyScreen.classList.remove('active');
     gameScreen.classList.add('active');
     broadcastState();
+    updatePublicRoomStatus();
 });
 
 // Host logic handling incoming actions
@@ -821,7 +909,8 @@ function showToast(msg) {
 }
 
 document.getElementById('btn-main-menu').addEventListener('click', () => {
-    // 1. Clean up PeerJS connections
+    // 1. Clean up PeerJS connections & Public Room
+    if (isHost) removePublicRoom();
     if (hostConn) { hostConn.close(); hostConn = null; }
     clientConns.forEach(c => c.close());
     clientConns = [];
@@ -854,6 +943,8 @@ document.getElementById('btn-main-menu').addEventListener('click', () => {
     joinBtn.disabled = false;
     joinBtn.innerText = "Join Room";
     
+    refreshPublicRooms();
+    
     // Check if user is signed in to show the correct setup options
     if (myName !== "Local Dev" && myName !== "") {
         document.getElementById('auth-section').classList.add('hidden');
@@ -872,3 +963,8 @@ document.getElementById('btn-how-to-play').addEventListener('click', () => {
 document.getElementById('btn-close-instructions').addEventListener('click', () => {
     document.getElementById('how-to-play-modal').classList.remove('active');
 });
+
+document.getElementById('btn-refresh-public').addEventListener('click', refreshPublicRooms);
+
+// Initial Load
+if (supabaseClient) refreshPublicRooms();

@@ -38,18 +38,30 @@
                 </div>
                 <div class="host-section">
                     <h3>Host a Game</h3>
+                    <div class="form-group" style="margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <input type="checkbox" id="check-public-game" style="width: 18px; height: 18px;">
+                        <label for="check-public-game" style="font-size: 0.9rem; cursor: pointer;">Public Game (anyone can join)</label>
+                    </div>
                     <button id="btn-create-room" class="primary-btn">Create Room</button>
                 </div>
                 
                 <div class="divider">OR</div>
                 
                 <div class="join-section">
-                    <h3>Join a Game</h3>
+                    <h3>Join Private Game</h3>
                     <div class="form-group">
                         <label>Room Code:</label>
                         <input type="text" id="join-code" placeholder="Enter Code" class="input-field uppercase">
                     </div>
                     <button id="btn-join-room" class="primary-btn secondary">Join Room</button>
+                </div>
+
+                <div class="public-rooms-section" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <h3 style="margin-bottom: 15px;">Public Rooms</h3>
+                    <div id="public-rooms-list" class="public-rooms-list" style="margin-bottom: 10px;">
+                        <p style="font-size: 0.8rem; opacity: 0.6;">No public rooms active.</p>
+                    </div>
+                    <button id="btn-refresh-public" class="text-btn" style="font-size: 0.8rem; color: #a78bfa;">Refresh List</button>
                 </div>
 
                 <button id="btn-how-to-play" class="text-btn" style="margin-top: 20px; color: #a78bfa;">How to Play?</button>
