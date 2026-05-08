@@ -156,6 +156,14 @@ async function removePublicRoom() {
     } catch (e) {}
 }
 
+window.addEventListener('beforeunload', () => {
+    if (isHost && currentPublicRoomCode) {
+        // This is a fire-and-forget attempt. 
+        // Browsers may block async fetch on unload, but we try anyway.
+        removePublicRoom();
+    }
+});
+
 async function refreshPublicRooms() {
     if (!supabaseClient) return;
     const listEl = document.getElementById('public-rooms-list');
