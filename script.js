@@ -815,30 +815,30 @@ function updateButtons(isMyTurn) {
         return;
     }
 
-    btn1.disabled = !selectedOwnBadCard;
-    btn2Take.disabled = !selectedOwnGoodCard || gameState.deckCount === 0;
-    btn2Trade.disabled = !selectedOwnGoodCard || !selectedOpponentBadCard || gameState.deckCount === 0;
+    btn1.disabled = selectedOwnBadCard === null;
+    btn2Take.disabled = selectedOwnGoodCard === null || gameState.deckCount === 0;
+    btn2Trade.disabled = selectedOwnGoodCard === null || selectedOpponentBadCard === null || gameState.deckCount === 0;
 }
 
 // Move Listeners
 document.getElementById('btn-move-1').addEventListener('click', () => {
-    if (!selectedOwnBadCard) return;
+    if (selectedOwnBadCard === null) return;
     sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
     resetSelections();
 });
 
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
-    if (!selectedOwnGoodCard) return;
+    if (selectedOwnGoodCard === null) return;
     sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
     resetSelections();
 });
 
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
-    if (!selectedOwnGoodCard || selectedOpponentBadCard === null) return;
+    if (selectedOwnGoodCard === null || selectedOpponentBadCard === null) return;
     sendAction('MOVE_2_TRADE_START', { 
         goodCardId: selectedOwnGoodCard, 
-        targetPlayerId: tradeTargetPlayerIndex, 
-        targetBadCardId: selectedOpponentBadCard 
+        targetBadCardId: selectedOpponentBadCard, 
+        targetPlayerId: tradeTargetPlayerIndex 
     });
     resetSelections();
 });
