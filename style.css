@@ -374,10 +374,19 @@ p {
     font-weight: 800;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     user-select: none;
     position: relative;
     flex-shrink: 0; /* Prevent cards from shrinking on small screens */
+}
+
+.card-flying {
+    position: fixed !important;
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
 }
 
 .card::before, .card::after {

@@ -862,27 +862,88 @@ function updateButtons(isMyTurn) {
     btn2Trade.disabled = selectedOwnGoodCard === null || selectedOpponentBadCard === null || gameState.deckCount === 0;
 }
 
+// Animation Helper
+function animateCardMovement(sourceEl, targetEl, callback) {
+    if (!sourceEl || !targetEl) {
+        if (callback) callback();
+        return;
+    }
+
+    const sourceRect = sourceEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+
+    // Create a clone for animation
+    const clone = sourceEl.cloneNode(true);
+    clone.classList.add('card-flying');
+    clone.style.top = sourceRect.top + 'px';
+    clone.style.left = sourceRect.left + 'px';
+    clone.style.width = sourceRect.width + 'px';
+    clone.style.height = sourceRect.height + 'px';
+
+    document.body.appendChild(clone);
+
+    // Hide original during animation
+    sourceEl.style.opacity = '0';
+
+    // Trigger animation in next frame
+    requestAnimationFrame(() => {
+        clone.style.top = targetRect.top + 'px';
+        clone.style.left = targetRect.left + 'px';
+    });
+
+    setTimeout(() => {
+        if (clone.parentNode) document.body.removeChild(clone);
+        sourceEl.style.opacity = '1';
+        if (callback) callback();
+    }, 600);
+}
+
 // Move Listeners
 document.getElementById('btn-move-1').addEventListener('click', () => {
     if (selectedOwnBadCard === null) return;
-    sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
-    resetSelections();
+    
+    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnBadCard}"]`);
+    const targetEl = document.querySelector('#trade-deck .card-slot');
+    
+    // Guard against multi-clicks
+    document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+    
+    animateCardMovement(cardEl, targetEl, () => {
+        sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
+        resetSelections();
+    });
 });
 
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
     if (selectedOwnGoodCard === null) return;
-    sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
-    resetSelections();
+    
+    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnGoodCard}"]`);
+    const targetEl = document.querySelector('#trash-deck .card-slot');
+    
+    document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+    
+    animateCardMovement(cardEl, targetEl, () => {
+        sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
+        resetSelections();
+    });
 });
 
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
     if (selectedOwnGoodCard === null || selectedOpponentBadCard === null) return;
-    sendAction('MOVE_2_TRADE_START', { 
-        goodCardId: selectedOwnGoodCard, 
-        targetBadCardId: selectedOpponentBadCard, 
-        targetPlayerId: tradeTargetPlayerIndex 
+    
+    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnGoodCard}"]`);
+    const targetEl = document.querySelector('#trash-deck .card-slot');
+    
+    document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+    animateCardMovement(cardEl, targetEl, () => {
+        sendAction('MOVE_2_TRADE_START', { 
+            goodCardId: selectedOwnGoodCard, 
+            targetBadCardId: selectedOpponentBadCard, 
+            targetPlayerId: tradeTargetPlayerIndex 
+        });
+        resetSelections();
     });
-    resetSelections();
 });
 
 function resetSelections() {
