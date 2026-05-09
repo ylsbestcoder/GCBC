@@ -569,6 +569,12 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
             }
         });
         
+        hostConn.on('close', () => {
+            showToast('Host has left the room.');
+            // Automatically return to main menu
+            document.getElementById('btn-main-menu').click();
+        });
+
         hostConn.on('error', () => {
             showToast('Failed to connect to host.');
             btn.disabled = false;
