@@ -822,7 +822,7 @@ function renderGame() {
                         document.querySelectorAll('.trade-target-selectable').forEach(n => n.classList.remove('trade-target-selectable'));
                         
                         const clickedEl = document.querySelector(`.card[data-id="${c.id}"]`);
-                        const myHandEl = document.getElementById('current-player-hand');
+                        const myHandEl = document.querySelector(`#current-player-hand .card[data-id^="temp_trade_slot_"]`) || document.getElementById('current-player-hand');
                         
                         const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
                         animateCardMovement(clickedEl, myHandEl);
