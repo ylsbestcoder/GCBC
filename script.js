@@ -114,7 +114,20 @@ const gameOverScreen = document.getElementById('game-over-screen');
 function initPeer() {
     peer = new Peer(null, { debug: 2 });
     peer.on('error', (err) => {
+        console.error("PeerJS Error:", err);
         showToast('Connection error: ' + err.message);
+        
+        // Reset setup buttons if they are in a loading state
+        const hostBtn = document.getElementById('btn-create-room');
+        const joinBtn = document.getElementById('btn-join-room');
+        if (hostBtn) {
+            hostBtn.disabled = false;
+            hostBtn.innerText = "Create Room";
+        }
+        if (joinBtn) {
+            joinBtn.disabled = false;
+            joinBtn.innerText = "Join Room";
+        }
     });
 }
 
@@ -534,9 +547,19 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
     btn.innerText = "Joining...";
     
     const joinRoom = () => {
+        const timeout = setTimeout(() => {
+            if (btn.innerText === "Joining...") {
+                showToast('Room not found or host unavailable.');
+                btn.disabled = false;
+                btn.innerText = "Join Room";
+                if (hostConn) hostConn.close();
+            }
+        }, 5000);
+
         hostConn = peer.connect(`gcbc-game-${code}`);
         
         hostConn.on('open', () => {
+            clearTimeout(timeout);
             isHost = false;
             hostConn.send({ 
                 type: 'JOIN_REQUEST', 
@@ -580,6 +603,7 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
         });
 
         hostConn.on('error', () => {
+            clearTimeout(timeout);
             showToast('Failed to connect to host.');
             btn.disabled = false;
             btn.innerText = "Join Room";
