@@ -525,7 +525,7 @@ p {
 /* Original Style Face Down */
 body.card-style-original .card.face-down {
     background-image: 
-        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="black" flood-opacity="0.8" /></filter></defs><text x="50%" y="50%" font-family="Outfit, sans-serif" font-size="52" font-weight="800" text-anchor="middle" dominant-baseline="middle" filter="url(%23shadow)" stroke="white" stroke-width="1.5"><tspan fill="%2315803d">G</tspan><tspan fill="%23a16207">C</tspan><tspan fill="%23b91c1c">B</tspan><tspan fill="%23a16207">C</tspan></text></svg>'),
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="black" flood-opacity="0.8" /></filter></defs><text x="50%" y="50%" font-family="Orbitron, sans-serif" font-size="48" font-weight="900" text-anchor="middle" dominant-baseline="middle" filter="url(%23shadow)" stroke="white" stroke-width="1.5"><tspan fill="%2315803d">G</tspan><tspan fill="%23a16207">C</tspan><tspan fill="%23b91c1c">B</tspan><tspan fill="%23a16207">C</tspan></text></svg>'),
         linear-gradient(135deg, #a16207, #4d7c0f, #15803d, #047857, #0f766e, #0e7490, #1d4ed8, #4338ca, #7e22ce, #a21caf, #b91c1c, #a16207);
     background-size: cover;
     background-position: center;
