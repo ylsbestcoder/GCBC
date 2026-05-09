@@ -419,6 +419,7 @@ function handleHostAction(playerId, action, payload) {
     const currPlayer = gameState.players[gameState.currentPlayerIndex];
     
     if (action === 'MOVE_1') {
+        broadcastAnimation('MOVE_1', playerId, payload.badCardId, 'TRADE');
         const cardIdx = currPlayer.hand.findIndex(c => c.id === payload.badCardId);
         if (cardIdx === -1) return;
         
@@ -434,7 +435,7 @@ function handleHostAction(playerId, action, payload) {
         hostNextTurn();
     } 
     else if (action === 'MOVE_2_TAKE') {
-        if (hostDeck.length === 0) return;
+        broadcastAnimation('MOVE_2_TAKE', playerId, payload.goodCardId, 'TRASH');
         const cardIdx = currPlayer.hand.findIndex(c => c.id === payload.goodCardId);
         if (cardIdx === -1) return;
         
@@ -576,6 +577,8 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
         hostConn.on('data', (data) => {
             if (data.type === 'WELCOME') {
                 myPlayerId = data.playerId;
+            } else if (data.type === 'ANIMATE') {
+                playRemoteAnimation(data.moveData);
             }
             else if (data.type === 'STATE') {
                 const oldStatus = gameState.status;
@@ -780,6 +783,7 @@ function renderGame() {
         if (p.id === myPlayerId) return;
 
         const oppEl = document.createElement('div');
+        oppEl.dataset.playerId = p.id;
         oppEl.className = `opponent ${p.isFinished ? 'finished' : ''} ${p.id === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
         oppEl.innerHTML = `<div class="opponent-header">
             ${p.picture ? `<img src="${p.picture}" class="profile-pic small">` : '👤'}
@@ -860,6 +864,58 @@ function updateButtons(isMyTurn) {
     btn1.disabled = selectedOwnBadCard === null;
     btn2Take.disabled = selectedOwnGoodCard === null || gameState.deckCount === 0;
     btn2Trade.disabled = selectedOwnGoodCard === null || selectedOpponentBadCard === null || gameState.deckCount === 0;
+}
+
+// Animation Sync
+function broadcastAnimation(moveType, playerId, sourceCardId, targetType) {
+    const moveData = { moveType, playerId, sourceCardId, targetType };
+    
+    // Send to all clients
+    gameState.players.forEach(p => {
+        if (p.conn && p.conn.open) {
+            p.conn.send({ type: 'ANIMATE', moveData });
+        }
+    });
+
+    // Also play locally if I'm the host (the host doesn't send data to themselves)
+    playRemoteAnimation(moveData);
+}
+
+function playRemoteAnimation(data) {
+    // If I initiated this move, I already played it locally
+    if (data.playerId === myPlayerId) return;
+    
+    const { moveType, playerId, sourceCardId, targetType } = data;
+    
+    // Find source element (either my hand or an opponent's area)
+    let sourceEl;
+    if (playerId === myPlayerId) {
+        sourceEl = document.querySelector(`.card[data-id="${sourceCardId}"]`);
+    } else {
+        const oppArea = document.querySelector(`.opponent[data-player-id="${playerId}"]`);
+        // On other people's screens, they might not know which card it is, so just pick one from the hand
+        sourceEl = oppArea ? oppArea.querySelector(`.card[data-id="${sourceCardId}"]`) || oppArea.querySelector('.card') : null;
+    }
+    
+    // Find target element
+    const targetSlotEl = document.querySelector(targetType === 'TRADE' ? '#trade-deck .card-slot' : '#trash-deck .card-slot');
+    
+    if (sourceEl && targetSlotEl) {
+        animateCardMovement(sourceEl, targetSlotEl);
+        
+        // For swaps, also animate the card coming back
+        if (moveType === 'MOVE_1') {
+            const tradeCardEl = document.querySelector('#trade-deck .card-slot .card');
+            if (tradeCardEl) {
+                animateCardMovement(tradeCardEl, sourceEl);
+            }
+        } else if (moveType === 'MOVE_2_TAKE') {
+            const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
+            if (badDeckCardEl) {
+                animateCardMovement(badDeckCardEl, sourceEl);
+            }
+        }
+    }
 }
 
 // Animation Helper
