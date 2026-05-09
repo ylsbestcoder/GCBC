@@ -432,7 +432,7 @@ function handleHostAction(playerId, action, payload) {
         cardToTrade.isGood = false;
         gameState.tradeDeck.push(cardToTrade);
         
-        hostNextTurn();
+        setTimeout(() => hostNextTurn(), 600);
     } 
     else if (action === 'MOVE_2_TAKE') {
         broadcastAnimation('MOVE_2_TAKE', playerId, payload.goodCardId, 'TRASH');
@@ -447,7 +447,7 @@ function handleHostAction(playerId, action, payload) {
         
         gameState.deckCount = hostDeck.length;
         
-        hostNextTurn();
+        setTimeout(() => hostNextTurn(), 600);
     }
     else if (action === 'MOVE_2_TRADE_START') {
         if (hostDeck.length === 0) return;
@@ -471,8 +471,11 @@ function handleHostAction(playerId, action, payload) {
         targetPlayer.hand[badCardIdx] = { id: 'temp_trade_slot_' + targetPlayer.id, isTemp: true, isFaceDown: true };
         
         // Enter Trade State
+        broadcastAnimation('MOVE_2_TRADE_START', playerId, payload.goodCardId, 'TRASH', { targetBadCardId: payload.targetBadCardId, targetPlayerId: payload.targetPlayerId });
         gameState.tradeState = { initiatorId: currPlayer.id, targetId: targetPlayer.id, emptySlotIdx: badCardIdx };
-        broadcastState();
+        
+        // Delay state broadcast so animations finish first
+        setTimeout(() => broadcastState(), 600);
     }
     else if (action === 'MOVE_2_TRADE_RESOLVE') {
         if (!gameState.tradeState || playerId != gameState.tradeState.targetId) return;
@@ -497,7 +500,7 @@ function handleHostAction(playerId, action, payload) {
         gameState.deckCount = hostDeck.length;
         
         gameState.tradeState = null;
-        hostNextTurn();
+        setTimeout(() => hostNextTurn(), 600);
     }
 }
 
@@ -811,18 +814,10 @@ function renderGame() {
                         const clickedEl = document.querySelector(`.card[data-id="${c.id}"]`);
                         const myHandEl = document.getElementById('current-player-hand');
                         
-                        let animsComplete = 0;
-                        const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
+                        animateCardMovement(clickedEl, myHandEl);
+                        if (badDeckCardEl) animateCardMovement(badDeckCardEl, clickedEl);
                         
-                        const checkDone = () => {
-                            animsComplete++;
-                            if (animsComplete === (badDeckCardEl ? 2 : 1)) {
-                                sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
-                            }
-                        };
-                        
-                        animateCardMovement(clickedEl, myHandEl, checkDone);
-                        if (badDeckCardEl) animateCardMovement(badDeckCardEl, clickedEl, checkDone);
+                        sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
                     }
                     return;
                 }
@@ -894,6 +889,34 @@ function playRemoteAnimation(data) {
     if (data.playerId === myPlayerId) return;
     
     const { moveType, playerId, sourceCardId, targetType, extraData } = data;
+    
+    if (moveType === 'MOVE_2_TRADE_START') {
+        // Initiator's Good Card -> Trash
+        let initiatorCardEl;
+        if (playerId === myPlayerId) {
+            initiatorCardEl = document.querySelector(`.card[data-id="${sourceCardId}"]`);
+        } else {
+            const oppArea = document.querySelector(`.opponent[data-player-id="${playerId}"]`);
+            initiatorCardEl = oppArea ? oppArea.querySelector(`.card[data-id="${sourceCardId}"]`) || oppArea.querySelector('.card') : null;
+        }
+        
+        const trashSlotEl = document.querySelector('#trash-deck .card-slot');
+        if (initiatorCardEl && trashSlotEl) animateCardMovement(initiatorCardEl, trashSlotEl);
+        
+        // Victim's Bad Card -> Initiator's Hand
+        let victimCardEl;
+        if (extraData.targetPlayerId === myPlayerId) {
+            victimCardEl = document.querySelector(`.card[data-id="${extraData.targetBadCardId}"]`);
+        } else {
+            const oppArea = document.querySelector(`.opponent[data-player-id="${extraData.targetPlayerId}"]`);
+            victimCardEl = oppArea ? oppArea.querySelector(`.card[data-id="${extraData.targetBadCardId}"]`) || oppArea.querySelector('.card') : null;
+        }
+        
+        const initiatorHandEl = document.querySelector(`.opponent[data-player-id="${playerId}"]`) || document.getElementById('current-player-hand');
+        
+        if (victimCardEl && initiatorHandEl) animateCardMovement(victimCardEl, initiatorHandEl);
+        return;
+    }
     
     if (moveType === 'MOVE_2_TRADE_RESOLVE') {
         // Victim picking initiator's card
@@ -1014,20 +1037,14 @@ document.getElementById('btn-move-1').addEventListener('click', () => {
     // Guard against multi-clicks
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
-    let animsComplete = 0;
-    const checkDone = () => {
-        animsComplete++;
-        if (animsComplete === (tradeCardEl ? 2 : 1)) {
-            sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
-            resetSelections();
-        }
-    };
+    animateCardMovement(cardEl, targetSlotEl);
+    if (tradeCardEl) animateCardMovement(tradeCardEl, cardEl);
     
-    animateCardMovement(cardEl, targetSlotEl, checkDone);
-    if (tradeCardEl) {
-        // Animate the trade card back to the un-shifted position of the hand card
-        animateCardMovement(tradeCardEl, cardEl, checkDone);
-    }
+    sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
+    
+    // Clear selections visually without doing a full renderGame immediately
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    selectedOwnBadCard = null;
 });
 
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
@@ -1039,19 +1056,13 @@ document.getElementById('btn-move-2-take').addEventListener('click', () => {
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
-    let animsComplete = 0;
-    const checkDone = () => {
-        animsComplete++;
-        if (animsComplete === (badDeckCardEl ? 2 : 1)) {
-            sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
-            resetSelections();
-        }
-    };
+    animateCardMovement(cardEl, trashSlotEl);
+    if (badDeckCardEl) animateCardMovement(badDeckCardEl, cardEl);
     
-    animateCardMovement(cardEl, trashSlotEl, checkDone);
-    if (badDeckCardEl) {
-        animateCardMovement(badDeckCardEl, cardEl, checkDone);
-    }
+    sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
+    
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    selectedOwnGoodCard = null;
 });
 
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
@@ -1064,14 +1075,18 @@ document.getElementById('btn-move-2-trade').addEventListener('click', () => {
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
-    animateCardMovement(cardEl, trashSlotEl, () => {
-        sendAction('MOVE_2_TRADE_START', { 
-            goodCardId: selectedOwnGoodCard, 
-            targetBadCardId: selectedOpponentBadCard, 
-            targetPlayerId: tradeTargetPlayerIndex 
-        });
-        resetSelections();
+    animateCardMovement(cardEl, trashSlotEl);
+    
+    sendAction('MOVE_2_TRADE_START', { 
+        goodCardId: selectedOwnGoodCard, 
+        targetBadCardId: selectedOpponentBadCard, 
+        targetPlayerId: tradeTargetPlayerIndex 
     });
+    
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    selectedOwnGoodCard = null;
+    selectedOpponentBadCard = null;
+    tradeTargetPlayerIndex = null;
 });
 
 function resetSelections() {
