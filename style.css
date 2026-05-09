@@ -385,6 +385,7 @@ p {
     z-index: 9999 !important;
     pointer-events: none !important;
     margin: 0 !important;
+    transform: none !important;
     transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
     box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
 }
