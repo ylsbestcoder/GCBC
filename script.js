@@ -477,6 +477,8 @@ function handleHostAction(playerId, action, payload) {
     else if (action === 'MOVE_2_TRADE_RESOLVE') {
         if (!gameState.tradeState || playerId != gameState.tradeState.targetId) return;
         
+        broadcastAnimation('MOVE_2_TRADE_RESOLVE', playerId, payload.chosenBadCardId, 'TRADE_RESOLVE', { initiatorId: gameState.tradeState.initiatorId });
+        
         const targetPlayer = gameState.players.find(p => p.id == gameState.tradeState.targetId);
         const initPlayer = gameState.players.find(p => p.id == gameState.tradeState.initiatorId);
         
@@ -801,13 +803,43 @@ function renderGame() {
             const isFaceDown = card.isGood;
             
             const el = createCardElement(card, isFaceDown, card.isGood, (c) => {
-                if (!isMyTurn || p.isFinished || gameState.tradeState) return;
+                if (gameState.tradeState) {
+                    if (gameState.tradeState.targetId === myPlayerId && p.id === gameState.tradeState.initiatorId && !c.isGood && !c.isTemp) {
+                        // Prevent multiple clicks
+                        document.querySelectorAll('.trade-target-selectable').forEach(n => n.classList.remove('trade-target-selectable'));
+                        
+                        const clickedEl = document.querySelector(`.card[data-id="${c.id}"]`);
+                        const myHandEl = document.getElementById('current-player-hand');
+                        
+                        let animsComplete = 0;
+                        const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
+                        
+                        const checkDone = () => {
+                            animsComplete++;
+                            if (animsComplete === (badDeckCardEl ? 2 : 1)) {
+                                sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
+                            }
+                        };
+                        
+                        animateCardMovement(clickedEl, myHandEl, checkDone);
+                        if (badDeckCardEl) animateCardMovement(badDeckCardEl, clickedEl, checkDone);
+                    }
+                    return;
+                }
+
+                if (!isMyTurn || p.isFinished) return;
                 if (!c.isGood) {
                     selectCard('opponent', c.id, p.id);
                 }
             });
             
             if (selectedOpponentBadCard === card.id) el.classList.add('selected');
+            
+            // Highlight cards if the current player needs to pick one for a trade
+            if (gameState.tradeState && gameState.tradeState.targetId === myPlayerId && p.id === gameState.tradeState.initiatorId && !card.isGood && !card.isTemp) {
+                el.classList.add('trade-target-selectable');
+            }
+            
             applySelections(card, el);
             
             oppHand.appendChild(el);
@@ -816,33 +848,9 @@ function renderGame() {
         opponentsContainer.appendChild(oppEl);
     });
 
-    // Modals
+    // Modals removed - trade resolution now happens directly on opponent cards
     const modal = document.getElementById('trade-modal');
-    if (gameState.tradeState) {
-        if (gameState.tradeState.targetId === myPlayerId) {
-            // I am the target! I must choose one of the initiator's bad cards.
-            const initPlayer = gameState.players.find(p => p.id === gameState.tradeState.initiatorId);
-            document.getElementById('trade-modal-desc').innerText = `Choose a Bad Card from ${initPlayer.name} to keep as your Good Card!`;
-            const cardsContainer = document.getElementById('trade-modal-cards');
-            cardsContainer.innerHTML = '';
-            
-            initPlayer.hand.filter(c => !c.isGood && !c.isTemp).forEach(card => {
-                // Should be visible to me
-                const el = createCardElement(card, false, false, (c) => {
-                    sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
-                    modal.classList.remove('active');
-                });
-                cardsContainer.appendChild(el);
-            });
-            modal.classList.add('active');
-        } else {
-            document.getElementById('trade-modal-desc').innerText = `Waiting for opponent to choose a card...`;
-            document.getElementById('trade-modal-cards').innerHTML = '';
-            modal.classList.add('active');
-        }
-    } else {
-        modal.classList.remove('active');
-    }
+    if (modal) modal.classList.remove('active');
 
     updateButtons(isMyTurn);
     
@@ -867,8 +875,8 @@ function updateButtons(isMyTurn) {
 }
 
 // Animation Sync
-function broadcastAnimation(moveType, playerId, sourceCardId, targetType) {
-    const moveData = { moveType, playerId, sourceCardId, targetType };
+function broadcastAnimation(moveType, playerId, sourceCardId, targetType, extraData = null) {
+    const moveData = { moveType, playerId, sourceCardId, targetType, extraData };
     
     // Send to all clients
     gameState.players.forEach(p => {
@@ -885,7 +893,34 @@ function playRemoteAnimation(data) {
     // If I initiated this move, I already played it locally
     if (data.playerId === myPlayerId) return;
     
-    const { moveType, playerId, sourceCardId, targetType } = data;
+    const { moveType, playerId, sourceCardId, targetType, extraData } = data;
+    
+    if (moveType === 'MOVE_2_TRADE_RESOLVE') {
+        // Victim picking initiator's card
+        let sourceEl;
+        if (extraData.initiatorId === myPlayerId) {
+            sourceEl = document.querySelector(`.card[data-id="${sourceCardId}"]`);
+        } else {
+            const oppArea = document.querySelector(`.opponent[data-player-id="${extraData.initiatorId}"]`);
+            sourceEl = oppArea ? oppArea.querySelector(`.card[data-id="${sourceCardId}"]`) || oppArea.querySelector('.card') : null;
+        }
+        
+        let targetEl;
+        if (playerId === myPlayerId) {
+            targetEl = document.getElementById('current-player-hand');
+        } else {
+            targetEl = document.querySelector(`.opponent[data-player-id="${playerId}"]`);
+        }
+        
+        if (sourceEl && targetEl) {
+            animateCardMovement(sourceEl, targetEl);
+            const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
+            if (badDeckCardEl) {
+                animateCardMovement(badDeckCardEl, sourceEl);
+            }
+        }
+        return;
+    }
     
     // Find source element (either my hand or an opponent's area)
     let sourceEl;
