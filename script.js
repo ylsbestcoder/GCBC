@@ -634,7 +634,8 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
                     renderGame();
                 }
                 else if (gameState.status === 'FINISHED') {
-                    gameScreen.classList.remove('active');
+                    // Don't hide the game screen! Keep it active and interactive.
+                    gameScreen.classList.add('active');
                     renderGameOver();
                 }
             }
@@ -682,6 +683,19 @@ document.getElementById('btn-leave-game').addEventListener('click', () => {
     if (confirm('Are you sure you want to leave the game?')) {
         location.reload();
     }
+});
+
+document.getElementById('btn-main-menu').addEventListener('click', () => {
+    location.reload();
+});
+
+document.getElementById('btn-persistent-main-menu').addEventListener('click', () => {
+    location.reload();
+});
+
+document.getElementById('btn-hide-results').addEventListener('click', () => {
+    document.getElementById('game-over-screen').classList.remove('active');
+    document.getElementById('btn-persistent-main-menu').classList.remove('hidden');
 });
 
 function renderLobby() {

@@ -151,15 +151,20 @@
 
     </div>
 
-    <div id="game-over-screen" class="screen">
-        <div class="glass-panel game-over-panel">
+    <div id="game-over-screen" class="screen" style="pointer-events: none;">
+        <div class="glass-panel game-over-panel" style="pointer-events: auto;">
             <h1>Game Over</h1>
             <div id="scoreboard">
                 <!-- Scores go here -->
             </div>
-            <button id="btn-main-menu" class="primary-btn" style="margin-top: 30px;">Return to Main Menu</button>
+            <div style="display: flex; gap: 10px; margin-top: 30px;">
+                <button id="btn-hide-results" class="primary-btn secondary">Hide Results</button>
+                <button id="btn-main-menu" class="primary-btn">Return to Main Menu</button>
+            </div>
         </div>
     </div>
+    
+    <button id="btn-persistent-main-menu" class="primary-btn hidden" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">Return to Main Menu</button>
 
     <div id="toast-container"></div>
 
