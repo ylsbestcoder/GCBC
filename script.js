@@ -816,7 +816,9 @@ function renderGame() {
                         
                         const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
                         animateCardMovement(clickedEl, myHandEl);
-                        if (badDeckCardEl) animateCardMovement(badDeckCardEl, clickedEl);
+                        if (badDeckCardEl) {
+                            setTimeout(() => animateCardMovement(badDeckCardEl, clickedEl), 100);
+                        }
                         
                         sendAction('MOVE_2_TRADE_RESOLVE', { chosenBadCardId: c.id });
                     }
@@ -913,7 +915,9 @@ function playRemoteAnimation(data) {
             victimCardEl = oppArea ? oppArea.querySelector(`.card[data-id="${extraData.targetBadCardId}"]`) || oppArea.querySelector('.card') : null;
         }
         
-        if (victimCardEl && initiatorCardEl) animateCardMovement(victimCardEl, initiatorCardEl);
+        setTimeout(() => {
+            if (victimCardEl && initiatorCardEl) animateCardMovement(victimCardEl, initiatorCardEl);
+        }, 100);
         return;
     }
     
@@ -941,7 +945,7 @@ function playRemoteAnimation(data) {
             animateCardMovement(sourceEl, targetEl);
             const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
             if (badDeckCardEl) {
-                animateCardMovement(badDeckCardEl, sourceEl);
+                setTimeout(() => animateCardMovement(badDeckCardEl, sourceEl), 100);
             }
         }
         return;
@@ -967,12 +971,12 @@ function playRemoteAnimation(data) {
         if (moveType === 'MOVE_1') {
             const tradeCardEl = document.querySelector('#trade-deck .card-slot .card');
             if (tradeCardEl) {
-                animateCardMovement(tradeCardEl, sourceEl);
+                setTimeout(() => animateCardMovement(tradeCardEl, sourceEl), 100);
             }
         } else if (moveType === 'MOVE_2_TAKE') {
             const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
             if (badDeckCardEl) {
-                animateCardMovement(badDeckCardEl, sourceEl);
+                setTimeout(() => animateCardMovement(badDeckCardEl, sourceEl), 100);
             }
         }
     }
@@ -1040,7 +1044,9 @@ document.getElementById('btn-move-1').addEventListener('click', () => {
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
     animateCardMovement(cardEl, targetSlotEl);
-    if (tradeCardEl) animateCardMovement(tradeCardEl, cardEl);
+    if (tradeCardEl) {
+        setTimeout(() => animateCardMovement(tradeCardEl, cardEl), 100);
+    }
     
     sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
     
@@ -1059,7 +1065,9 @@ document.getElementById('btn-move-2-take').addEventListener('click', () => {
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
     animateCardMovement(cardEl, trashSlotEl);
-    if (badDeckCardEl) animateCardMovement(badDeckCardEl, cardEl);
+    if (badDeckCardEl) {
+        setTimeout(() => animateCardMovement(badDeckCardEl, cardEl), 100);
+    }
     
     sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
     
