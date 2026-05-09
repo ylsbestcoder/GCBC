@@ -863,17 +863,28 @@ function updateButtons(isMyTurn) {
 }
 
 // Animation Helper
-function animateCardMovement(sourceEl, targetEl, callback) {
-    if (!sourceEl || !targetEl) {
+function animateCardMovement(sourceEl, target, callback) {
+    if (!sourceEl || !target) {
         if (callback) callback();
         return;
     }
 
+    // Force remove selected class to get true un-shifted rect if target is an element
+    let targetRect;
+    if (target instanceof Element) {
+        const wasSelected = target.classList.contains('selected');
+        if (wasSelected) target.classList.remove('selected');
+        targetRect = target.getBoundingClientRect();
+        if (wasSelected) target.classList.add('selected');
+    } else {
+        targetRect = target; // Allow passing a raw DOMRect
+    }
+
     const sourceRect = sourceEl.getBoundingClientRect();
-    const targetRect = targetEl.getBoundingClientRect();
 
     // Create a clone for animation
     const clone = sourceEl.cloneNode(true);
+    clone.classList.remove('selected'); // Don't carry over the shift!
     clone.classList.add('card-flying');
     clone.style.top = sourceRect.top + 'px';
     clone.style.left = sourceRect.left + 'px';
@@ -881,6 +892,9 @@ function animateCardMovement(sourceEl, targetEl, callback) {
     clone.style.height = sourceRect.height + 'px';
 
     document.body.appendChild(clone);
+
+    // Force reflow so the browser registers the starting position
+    clone.getBoundingClientRect();
 
     // Hide original during animation
     sourceEl.style.opacity = '0';
@@ -903,40 +917,63 @@ document.getElementById('btn-move-1').addEventListener('click', () => {
     if (selectedOwnBadCard === null) return;
     
     const cardEl = document.querySelector(`.card[data-id="${selectedOwnBadCard}"]`);
-    const targetEl = document.querySelector('#trade-deck .card-slot');
+    const targetSlotEl = document.querySelector('#trade-deck .card-slot');
+    const tradeCardEl = document.querySelector('#trade-deck .card-slot .card');
     
     // Guard against multi-clicks
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
-    animateCardMovement(cardEl, targetEl, () => {
-        sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
-        resetSelections();
-    });
+    let animsComplete = 0;
+    const checkDone = () => {
+        animsComplete++;
+        if (animsComplete === (tradeCardEl ? 2 : 1)) {
+            sendAction('MOVE_1', { badCardId: selectedOwnBadCard });
+            resetSelections();
+        }
+    };
+    
+    animateCardMovement(cardEl, targetSlotEl, checkDone);
+    if (tradeCardEl) {
+        // Animate the trade card back to the un-shifted position of the hand card
+        animateCardMovement(tradeCardEl, cardEl, checkDone);
+    }
 });
 
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
     if (selectedOwnGoodCard === null) return;
     
     const cardEl = document.querySelector(`.card[data-id="${selectedOwnGoodCard}"]`);
-    const targetEl = document.querySelector('#trash-deck .card-slot');
+    const trashSlotEl = document.querySelector('#trash-deck .card-slot');
+    const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
     
-    animateCardMovement(cardEl, targetEl, () => {
-        sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
-        resetSelections();
-    });
+    let animsComplete = 0;
+    const checkDone = () => {
+        animsComplete++;
+        if (animsComplete === (badDeckCardEl ? 2 : 1)) {
+            sendAction('MOVE_2_TAKE', { goodCardId: selectedOwnGoodCard });
+            resetSelections();
+        }
+    };
+    
+    animateCardMovement(cardEl, trashSlotEl, checkDone);
+    if (badDeckCardEl) {
+        animateCardMovement(badDeckCardEl, cardEl, checkDone);
+    }
 });
 
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
     if (selectedOwnGoodCard === null || selectedOpponentBadCard === null) return;
     
     const cardEl = document.querySelector(`.card[data-id="${selectedOwnGoodCard}"]`);
-    const targetEl = document.querySelector('#trash-deck .card-slot');
+    const trashSlotEl = document.querySelector('#trash-deck .card-slot');
+    // Note: Opponent stealing parts are too complex for local pre-animation, 
+    // so we just animate the discard part locally for visual feedback.
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
-    animateCardMovement(cardEl, targetEl, () => {
+    animateCardMovement(cardEl, trashSlotEl, () => {
         sendAction('MOVE_2_TRADE_START', { 
             goodCardId: selectedOwnGoodCard, 
             targetBadCardId: selectedOpponentBadCard, 
