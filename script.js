@@ -171,6 +171,10 @@ async function refreshPublicRooms() {
     listEl.innerHTML = '<p style="font-size: 0.8rem; opacity: 0.6;">Refreshing...</p>';
     
     try {
+        // Auto-cleanup: Delete any rooms older than 2 hours from the database
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        supabaseClient.from('rooms').delete().lt('created_at', twoHoursAgo).then();
+
         const { data, error } = await supabaseClient
             .from('rooms')
             .select('*')
