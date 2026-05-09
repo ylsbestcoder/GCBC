@@ -660,6 +660,16 @@ function renderLobby() {
     });
     
     if (isHost && originalState.status !== 'FINISHED') gameState = originalState;
+
+    const startBtn = document.getElementById('btn-start-game');
+    const waitMsg = document.getElementById('waiting-msg');
+    if (isHost) {
+        startBtn.classList.remove('hidden');
+        waitMsg.classList.add('hidden');
+    } else {
+        startBtn.classList.add('hidden');
+        waitMsg.classList.remove('hidden');
+    }
 }
 
 function createCardElement(card, isFaceDown, isGood, onClick) {
