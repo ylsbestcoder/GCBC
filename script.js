@@ -874,9 +874,9 @@ function broadcastAnimation(moveType, playerId, sourceCardId, targetType, extraD
     const moveData = { moveType, playerId, sourceCardId, targetType, extraData };
     
     // Send to all clients
-    gameState.players.forEach(p => {
-        if (p.conn && p.conn.open) {
-            p.conn.send({ type: 'ANIMATE', moveData });
+    clientConns.forEach(conn => {
+        if (conn && conn.open) {
+            conn.send({ type: 'ANIMATE', moveData });
         }
     });
 
