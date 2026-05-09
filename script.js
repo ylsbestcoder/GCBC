@@ -383,7 +383,7 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     gameState.trashDeck = [];
     gameState.deckCount = hostDeck.length;
     gameState.status = 'PLAYING';
-    gameState.currentPlayerIndex = 0;
+    gameState.currentPlayerIndex = Math.floor(Math.random() * gameState.players.length);
     
     // Reset match log when game starts
     matchMoveLog = [];
