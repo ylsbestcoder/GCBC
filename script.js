@@ -384,6 +384,19 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     gameState.deckCount = hostDeck.length;
     gameState.status = 'PLAYING';
     gameState.currentPlayerIndex = Math.floor(Math.random() * gameState.players.length);
+    gameState.notationLog = [];
+    
+    // Assign Aliases
+    const numPlayers = gameState.players.length;
+    let aliasMap = [];
+    if (numPlayers === 2) aliasMap = ['O', 'F'];
+    else if (numPlayers === 3) aliasMap = ['O', 'D', 'C'];
+    else if (numPlayers === 4) aliasMap = ['O', 'R', 'D', 'C'];
+    
+    for (let i = 0; i < numPlayers; i++) {
+        const actualIndex = (gameState.currentPlayerIndex + i) % numPlayers;
+        gameState.players[actualIndex].alias = aliasMap[i];
+    }
     
     // Reset match log when game starts
     matchMoveLog = [];
@@ -432,6 +445,13 @@ function handleHostAction(playerId, action, payload) {
         cardToTrade.isGood = false;
         gameState.tradeDeck.push(cardToTrade);
         
+        // Record Notation
+        const newCount = currPlayer.hand.filter(c => c.isGood).length;
+        let moveLang = currPlayer.alias + '1';
+        if (newCount === 3) moveLang += 'X';
+        let cardLang = currPlayer.alias + (newCount === 0 ? 'X' : newCount);
+        gameState.notationLog.push({ move: moveLang, card: cardLang });
+        
         setTimeout(() => hostNextTurn(), 600);
     } 
     else if (action === 'MOVE_2_TAKE') {
@@ -446,6 +466,12 @@ function handleHostAction(playerId, action, payload) {
         currPlayer.hand[cardIdx] = newBadCard;
         
         gameState.deckCount = hostDeck.length;
+        
+        // Record Notation
+        const newCount = currPlayer.hand.filter(c => c.isGood).length;
+        let moveLang = currPlayer.alias + '2';
+        let cardLang = currPlayer.alias + (newCount === 0 ? 'X' : newCount);
+        gameState.notationLog.push({ move: moveLang, card: cardLang });
         
         setTimeout(() => hostNextTurn(), 600);
     }
@@ -498,6 +524,13 @@ function handleHostAction(playerId, action, payload) {
         initPlayer.hand[badCardIdx] = newBadCard;
         
         gameState.deckCount = hostDeck.length;
+        
+        // Record Notation
+        const targetCount = targetPlayer.hand.filter(c => c.isGood).length; // Victim
+        let moveLang = initPlayer.alias + '2' + targetPlayer.alias;
+        if (targetCount === 3) moveLang += 'X';
+        let cardLang = targetPlayer.alias + (targetCount === 0 ? 'X' : targetCount);
+        gameState.notationLog.push({ move: moveLang, card: cardLang });
         
         gameState.tradeState = null;
         setTimeout(() => hostNextTurn(), 600);
@@ -861,6 +894,22 @@ function renderGame() {
     if (modal) modal.classList.remove('active');
 
     updateButtons(isMyTurn);
+    
+    // Render Notation Log
+    const notationLogEl = document.getElementById('notation-log');
+    if (notationLogEl && gameState.notationLog) {
+        notationLogEl.innerHTML = '';
+        gameState.notationLog.forEach(entry => {
+            const row = document.createElement('div');
+            row.className = 'notation-row';
+            row.innerHTML = `
+                <div class="notation-col">${entry.move}</div>
+                <div class="notation-col">${entry.card}</div>
+            `;
+            notationLogEl.appendChild(row);
+        });
+        notationLogEl.scrollTop = notationLogEl.scrollHeight;
+    }
     
     if (isHost && originalState.status !== 'FINISHED') gameState = originalState;
 }

@@ -247,6 +247,78 @@ p {
 }
 
 /* Game Board */
+.game-layout-wrapper {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100%;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.game-board {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    padding: 20px 0;
+}
+
+.notation-sidebar {
+    width: 250px;
+    background: rgba(20, 20, 30, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    color: #e2e8f0;
+    margin: 20px 0;
+    height: calc(100% - 40px);
+}
+
+.notation-sidebar h3 {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: white;
+}
+
+.notation-table-header {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+.notation-log-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.notation-row {
+    display: flex;
+    padding: 6px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 1.05rem;
+}
+
+.notation-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.notation-col {
+    flex: 1;
+}
+
 .game-container {
     width: 100%;
     height: 100%;

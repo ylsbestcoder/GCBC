@@ -89,15 +89,16 @@
     </div>
 
     <div id="game-screen" class="screen">
-        <div class="game-container">
-            <div class="top-bar">
-                <span id="turn-indicator">Waiting...</span>
-                <span id="my-name-display"></span>
-            </div>
-
-            <div id="opponents-container" class="opponents-area">
-                <!-- Opponents will be rendered here dynamically -->
-            </div>
+        <div class="top-nav">
+            <div id="game-room-code">Room: ----</div>
+            <button id="btn-leave-game" class="danger-btn">Leave</button>
+        </div>
+        
+        <div class="game-layout-wrapper">
+            <div class="game-board">
+                <div class="opponents-area" id="opponents-container">
+                    <!-- Opponents will be rendered here dynamically -->
+                </div>
 
             <div class="center-area">
                 <div class="deck-container">
@@ -131,6 +132,17 @@
                 <div id="current-player-hand" class="hand">
                     <!-- Current player's cards go here -->
                 </div>
+            </div>
+        </div>
+        
+        <div class="notation-sidebar">
+            <h3>Match Log</h3>
+            <div class="notation-table-header">
+                <span style="flex: 1; font-weight: 600; color: #a78bfa;">Move</span>
+                <span style="flex: 1; font-weight: 600; color: #a78bfa;">Card</span>
+            </div>
+            <div id="notation-log" class="notation-log-content">
+                <!-- Log rows go here -->
             </div>
         </div>
     </div>
