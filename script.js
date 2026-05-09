@@ -814,6 +814,7 @@ function renderGame() {
                         const clickedEl = document.querySelector(`.card[data-id="${c.id}"]`);
                         const myHandEl = document.getElementById('current-player-hand');
                         
+                        const badDeckCardEl = document.querySelector('#bad-deck .card-slot .card');
                         animateCardMovement(clickedEl, myHandEl);
                         if (badDeckCardEl) animateCardMovement(badDeckCardEl, clickedEl);
                         
