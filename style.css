@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700&family=Orbitron:wght@400;700;900&display=swap');
 
 /* Header / Nav */
 .top-nav {
@@ -32,6 +32,17 @@
 
 .danger-btn:hover {
     background: #dc2626;
+}
+
+.style-option:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.style-option:has(input:checked) {
+    background: rgba(167, 139, 250, 0.2) !important;
+    border-color: #a78bfa !important;
+    color: white;
+    font-weight: bold;
 }
 
 :root {
@@ -507,14 +518,32 @@ p {
 .card::after { bottom: 5px; right: 8px; transform: rotate(180deg); }
 
 .card.face-down {
+    color: transparent;
+}
+.card.face-down::before, .card.face-down::after { content: ''; }
+
+/* Original Style Face Down */
+body.card-style-original .card.face-down {
+    background: linear-gradient(135deg, #fefce8, #f7fee7, #f0fdf4, #ecfdf5, #f0fdfa, #ecfeff, #eff6ff, #eef2ff, #faf5ff, #fdf4ff, #fef2f2);
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><text x="50%" y="50%" font-family="Outfit, sans-serif" font-size="48" font-weight="800" text-anchor="middle" dominant-baseline="middle"><tspan fill="%2315803d">G</tspan><tspan fill="%23a16207">C</tspan><tspan fill="%23b91c1c">B</tspan><tspan fill="%23a16207">C</tspan></text></svg>');
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #a78bfa;
+}
+
+/* Geometric Style Face Down */
+body.card-style-geometric .card.face-down {
     background-color: #1e293b;
     background-image: url('card_back.png');
     background-size: cover;
     background-position: center;
     border: 2px solid #a78bfa;
-    color: transparent;
 }
-.card.face-down::before, .card.face-down::after { content: ''; }
+
+/* Geometric Font for Card Fronts */
+body.card-style-geometric .card:not(.face-down) {
+    font-family: 'Orbitron', sans-serif;
+}
 
 /* Card Values (Color coding for 0 to 10) */
 .card.val-0 { background-color: #fefce8; color: #a16207; } /* Golden */

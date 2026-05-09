@@ -29,6 +29,24 @@
             </div>
             
             <div id="setup-options" class="setup-options hidden">
+                <div class="style-selector-section" style="margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <h3 style="font-size: 1rem; margin-bottom: 10px;">Card Style</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <label class="style-option" style="flex: 1; text-align: center; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;">
+                            <input type="radio" name="card-style" value="original" style="display: none;">
+                            Original
+                        </label>
+                        <label class="style-option" style="flex: 1; text-align: center; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;">
+                            <input type="radio" name="card-style" value="geometric" checked style="display: none;">
+                            Geometric
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <input type="checkbox" id="check-remember-style" checked style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="check-remember-style" style="font-size: 0.8rem; opacity: 0.8; cursor: pointer;">Remember preference</label>
+                    </div>
+                </div>
+
                 <div class="user-profile-display" style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <img id="user-profile-img" src="" alt="Profile" class="profile-pic hidden">

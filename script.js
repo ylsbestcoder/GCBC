@@ -111,6 +111,45 @@ const lobbyScreen = document.getElementById('lobby-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameOverScreen = document.getElementById('game-over-screen');
 
+// Settings Logic
+function loadSettings() {
+    const savedStyle = localStorage.getItem('gcbc_card_style');
+    const remember = localStorage.getItem('gcbc_remember_style') !== 'false';
+    
+    document.getElementById('check-remember-style').checked = remember;
+    
+    if (savedStyle && remember) {
+        const radio = document.querySelector(`input[name="card-style"][value="${savedStyle}"]`);
+        if (radio) radio.checked = true;
+        document.body.className = `card-style-${savedStyle}`;
+    } else {
+        document.body.className = 'card-style-geometric';
+    }
+}
+
+document.querySelectorAll('input[name="card-style"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const style = e.target.value;
+        document.body.className = `card-style-${style}`;
+        if (document.getElementById('check-remember-style').checked) {
+            localStorage.setItem('gcbc_card_style', style);
+        }
+    });
+});
+
+document.getElementById('check-remember-style').addEventListener('change', (e) => {
+    localStorage.setItem('gcbc_remember_style', e.target.checked);
+    if (e.target.checked) {
+        const selectedStyle = document.querySelector('input[name="card-style"]:checked').value;
+        localStorage.setItem('gcbc_card_style', selectedStyle);
+    } else {
+        localStorage.removeItem('gcbc_card_style');
+    }
+});
+
+loadSettings();
+
+
 // Initialize PeerJS
 function initPeer() {
     peer = new Peer(null, { debug: 2 });
