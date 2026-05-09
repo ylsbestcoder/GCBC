@@ -105,6 +105,7 @@ let selectedOpponentBadCard = null;
 let tradeTargetPlayerIndex = null;
 
 // DOM
+
 const setupScreen = document.getElementById('setup-screen');
 const lobbyScreen = document.getElementById('lobby-screen');
 const gameScreen = document.getElementById('game-screen');
@@ -246,6 +247,7 @@ document.getElementById('btn-create-room').addEventListener('click', (e) => {
         myPlayerId = 0;
         
         document.getElementById('lobby-code').innerText = roomCode;
+        document.getElementById('game-room-code').innerText = `Room: ${roomCode}`;
         setupScreen.classList.remove('active');
         lobbyScreen.classList.add('active');
         document.getElementById('btn-start-game').classList.remove('hidden');
@@ -608,6 +610,7 @@ document.getElementById('btn-join-room').addEventListener('click', (e) => {
             });
             
             document.getElementById('lobby-code').innerText = code;
+            document.getElementById('game-room-code').innerText = `Room: ${code}`;
             setupScreen.classList.remove('active');
             lobbyScreen.classList.add('active');
         });
@@ -675,6 +678,12 @@ function sendAction(action, payload) {
 // ==========================================
 // RENDERING
 // ==========================================
+document.getElementById('btn-leave-game').addEventListener('click', () => {
+    if (confirm('Are you sure you want to leave the game?')) {
+        location.reload();
+    }
+});
+
 function renderLobby() {
     const originalState = gameState;
     if (isHost && gameState.status !== 'FINISHED') gameState = sanitizeStateFor(myPlayerId);
