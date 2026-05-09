@@ -904,7 +904,7 @@ function playRemoteAnimation(data) {
         const trashSlotEl = document.querySelector('#trash-deck .card-slot');
         if (initiatorCardEl && trashSlotEl) animateCardMovement(initiatorCardEl, trashSlotEl);
         
-        // Victim's Bad Card -> Initiator's Hand
+        // Victim's Bad Card -> Initiator's Hand (specifically to where the good card was)
         let victimCardEl;
         if (extraData.targetPlayerId === myPlayerId) {
             victimCardEl = document.querySelector(`.card[data-id="${extraData.targetBadCardId}"]`);
@@ -913,9 +913,7 @@ function playRemoteAnimation(data) {
             victimCardEl = oppArea ? oppArea.querySelector(`.card[data-id="${extraData.targetBadCardId}"]`) || oppArea.querySelector('.card') : null;
         }
         
-        const initiatorHandEl = document.querySelector(`.opponent[data-player-id="${playerId}"]`) || document.getElementById('current-player-hand');
-        
-        if (victimCardEl && initiatorHandEl) animateCardMovement(victimCardEl, initiatorHandEl);
+        if (victimCardEl && initiatorCardEl) animateCardMovement(victimCardEl, initiatorCardEl);
         return;
     }
     
@@ -931,9 +929,12 @@ function playRemoteAnimation(data) {
         
         let targetEl;
         if (playerId === myPlayerId) {
-            targetEl = document.getElementById('current-player-hand');
+            // Find the temporary empty slot in my hand
+            targetEl = document.querySelector(`#current-player-hand .card[data-id^="temp_trade_slot_"]`) || document.getElementById('current-player-hand');
         } else {
-            targetEl = document.querySelector(`.opponent[data-player-id="${playerId}"]`);
+            // Find the temporary empty slot in opponent's hand
+            const oppArea = document.querySelector(`.opponent[data-player-id="${playerId}"]`);
+            targetEl = oppArea ? oppArea.querySelector(`.card[data-id^="temp_trade_slot_"]`) || oppArea : null;
         }
         
         if (sourceEl && targetEl) {
