@@ -612,11 +612,14 @@ p {
         flex-shrink: 0;
     }
 
+    :root {
+        --card-width: 65px;
+        --card-height: 95px;
+        --card-radius: 8px;
+    }
+
     .card {
-        width: 65px;
-        height: 95px;
         font-size: 1.5rem;
-        border-radius: 8px;
     }
     
     .hand {
