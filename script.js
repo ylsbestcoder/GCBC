@@ -902,7 +902,7 @@ function animateCardMovement(sourceEl, targetEl, callback) {
 document.getElementById('btn-move-1').addEventListener('click', () => {
     if (selectedOwnBadCard === null) return;
     
-    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnBadCard}"]`);
+    const cardEl = document.querySelector(`.card[data-id="${selectedOwnBadCard}"]`);
     const targetEl = document.querySelector('#trade-deck .card-slot');
     
     // Guard against multi-clicks
@@ -917,7 +917,7 @@ document.getElementById('btn-move-1').addEventListener('click', () => {
 document.getElementById('btn-move-2-take').addEventListener('click', () => {
     if (selectedOwnGoodCard === null) return;
     
-    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnGoodCard}"]`);
+    const cardEl = document.querySelector(`.card[data-id="${selectedOwnGoodCard}"]`);
     const targetEl = document.querySelector('#trash-deck .card-slot');
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
@@ -931,7 +931,7 @@ document.getElementById('btn-move-2-take').addEventListener('click', () => {
 document.getElementById('btn-move-2-trade').addEventListener('click', () => {
     if (selectedOwnGoodCard === null || selectedOpponentBadCard === null) return;
     
-    const cardEl = document.querySelector(`.card[data-card-id="${selectedOwnGoodCard}"]`);
+    const cardEl = document.querySelector(`.card[data-id="${selectedOwnGoodCard}"]`);
     const targetEl = document.querySelector('#trash-deck .card-slot');
     
     document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
